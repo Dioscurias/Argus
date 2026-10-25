@@ -1,0 +1,45 @@
+{
+  "name": "argus",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "scripts": {
+    "dev": "concurrently --kill-others -n api,web -c cyan,blue \"tsx watch server/index.ts\" \"vite --host 127.0.0.1\"",
+    "dev:web": "vite --host 127.0.0.1",
+    "dev:server": "tsx watch server/index.ts",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "build": "npm run typecheck && vite build && tsc -p tsconfig.server.json",
+    "start": "node dist-server/server/index.js",
+    "test": "tsx --test tests/*.test.ts",
+    "test:browser": "node tests/browser-check.mjs"
+  },
+  "dependencies": {
+    "@blueprintjs/core": "^6.0.0",
+    "@blueprintjs/icons": "^6.0.0",
+    "@deck.gl/core": "^9.2.0",
+    "@deck.gl/mapbox": "^9.2.0",
+    "@fontsource/inter": "^5.2.0",
+    "@fontsource/jetbrains-mono": "^5.2.0",
+    "dotenv": "^17.0.0",
+    "express": "^5.1.0",
+    "maplibre-gl": "^5.13.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@types/ws": "^8.18.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^9.2.0",
+    "playwright": "^1.55.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.2",
+    "vite": "^6.4.0"
+  }
+}
