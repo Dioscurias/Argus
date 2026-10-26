@@ -9,7 +9,7 @@ export class ProviderError extends Error {
   constructor(readonly retryAfterMs = 60000, readonly status = 503) { super(`Provider unavailable (${status})`); }
 }
 export async function getJson(url: string, init?: RequestInit): Promise<unknown> {
-  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(12000) });
+  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(30000) });
   if (!response.ok) {
     const retry = response.headers.get('retry-after');
     const openSkyRetry = Number(response.headers.get('x-rate-limit-retry-after-seconds'));
