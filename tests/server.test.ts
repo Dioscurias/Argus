@@ -59,3 +59,30 @@ test('HTTP and WebSocket expose modeled snapshots without secrets and reject oth
     await app.close();
   }
 });
+
+test('live snapshot validates viewport and returns only observed adsb.lol aircraft', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.startsWith('https://api.adsb.lol/')) return Response.json({ now: Date.now(), ac: [{ hex: 'abc123', lat: 40, lon: -97, alt_baro: 32000, gs: 440, track: 90, seen_pos: 2, flight: 'LIVE1', t: 'A320' }] });
+    return originalFetch(input);
+  };
+  const app = createArgusServer({ ...readConfig({ MOCK_DATA_MODE: 'false', AIR_PROVIDER: 'adsblol', AIR_FALLBACK_PROVIDER: 'none' }), port: 0 });
+  await app.listen();
+  const address = app.server.address();
+  assert.ok(address && typeof address !== 'string');
+  const base = `http://127.0.0.1:${address.port}`;
+  try {
+    assert.equal((await fetch(`${base}/api/snapshot?lat=999&lon=-98`)).status, 400);
+    const response = await fetch(`${base}/api/snapshot?lat=39&lon=-98`);
+    const snapshot = await response.json() as Snapshot;
+    assert.equal(snapshot.mode, 'mixed');
+    assert.deepEqual(snapshot.counts, { air: 1, sea: 0, truck: 0 });
+    assert.equal(snapshot.entities[0].provenance, 'LIVE');
+    assert.equal(snapshot.entities[0].source, 'adsblol');
+    assert.ok(snapshot.entities.every(entity => entity.provenance !== 'MODELED'));
+  } finally {
+    await app.close();
+    globalThis.fetch = originalFetch;
+  }
+});

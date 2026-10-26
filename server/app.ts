@@ -25,6 +25,7 @@ export function createArgusServer(config: ServerConfig) {
     : config.air.fr24Key ? new Fr24Provider(config.air.fr24Key, config.air.bounds)
     : { id: 'fr24', minIntervalMs: 60000, poll: async () => { throw new ProviderError(); } };
   const airFeed = config.mockMode ? null : new AirFeed(makeAirProvider(config.air.provider), config.air.fallback === 'none' || config.air.fallback === config.air.provider ? null : makeAirProvider(config.air.fallback), config.air.intervalMs);
+  const regionalFeeds = new Map<string, AirFeed>();
   const cache = new TTLCache<Snapshot>(config.cacheTtlMs);
   let sequence = 0;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
@@ -78,9 +79,52 @@ export function createArgusServer(config: ServerConfig) {
     return frame;
   }
 
+  function unavailableFeed(layer: 'sea' | 'truck', now: number) {
+    return { id: `unavailable-${layer}`, layer, name: `${layer} unavailable`, health: 'offline' as const, provenance: 'DELAYED' as const, count: 0, updatedAt: now, message: 'No observed provider is connected.' };
+  }
+
+  function parseRegion(query: Record<string, unknown>) {
+    const [defaultLat, defaultLon] = config.air.point.split(',').map(Number);
+    const lat = query.lat === undefined ? defaultLat : Number(query.lat);
+    const lon = query.lon === undefined ? defaultLon : Number(query.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+    return { lat: Math.round(lat * 10) / 10, lon: Math.round(lon * 10) / 10 };
+  }
+
+  async function liveSnapshot(lat: number, lon: number): Promise<Snapshot> {
+    const key = `${lat},${lon}`;
+    let feed = regionalFeeds.get(key);
+    if (!feed) {
+      feed = new AirFeed(new AdsbLolProvider(`${lat},${lon},250`), null, config.air.intervalMs);
+      regionalFeeds.set(key, feed);
+      if (regionalFeeds.size > 24) {
+        const oldest = regionalFeeds.keys().next().value;
+        if (oldest) { regionalFeeds.get(oldest)?.dispose(); regionalFeeds.delete(oldest); }
+      }
+    }
+    const now = Date.now();
+    await feed.refresh(now);
+    const entities = feed.entities(now);
+    return {
+      type: 'snapshot', version: 1, mode: 'mixed', sequence: ++sequence, generatedAt: now,
+      intervalMs: config.air.intervalMs, counts: { air: entities.length, sea: 0, truck: 0 }, entities,
+      feeds: [feed.status(now), unavailableFeed('sea', now), unavailableFeed('truck', now)],
+    };
+  }
+
   app.use('/api', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
-  app.get('/api/health', (_req, res) => res.json({ status: 'ok', phase: 1, mode: config.mockMode ? 'mock' : 'mixed', feeds: snapshot().feeds }));
-  app.get('/api/snapshot', async (_req, res) => { if (airFeed) { await airFeed.refresh(Date.now()); cache.clear(); } res.json(snapshot()); });
+  app.get('/api/health', async (_req, res) => {
+    if (config.mockMode) return res.json({ status: 'ok', phase: 1, mode: 'mock', feeds: snapshot().feeds });
+    const [lat, lon] = config.air.point.split(',').map(Number);
+    const frame = await liveSnapshot(lat, lon);
+    return res.json({ status: 'ok', phase: 1, mode: 'mixed', feeds: frame.feeds });
+  });
+  app.get('/api/snapshot', async (req, res) => {
+    if (config.mockMode) return res.json(snapshot());
+    const region = parseRegion(req.query);
+    if (!region) return res.status(400).json({ error: 'lat and lon must be valid WGS84 coordinates.' });
+    return res.json(await liveSnapshot(region.lat, region.lon));
+  });
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Unknown API endpoint' }));
   const dist = resolve(process.cwd(), 'dist');
   if (existsSync(resolve(dist, 'index.html'))) {
@@ -123,6 +167,7 @@ export function createArgusServer(config: ServerConfig) {
     async close() {
       stopStreaming();
       airFeed?.dispose();
+      for (const feed of regionalFeeds.values()) feed.dispose();
       for (const socket of wss.clients) socket.terminate();
       await new Promise<void>(resolveClose => wss.close(() => resolveClose()));
       await new Promise<void>((resolveClose, reject) => server.close(error => error ? reject(error) : resolveClose()));

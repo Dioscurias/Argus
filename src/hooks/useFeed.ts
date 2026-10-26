@@ -1,57 +1,42 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { isSnapshot, type Snapshot } from '../../shared/schema';
 import { useClock } from './useClock';
 
 export type ConnectionState = 'connecting' | 'connected' | 'stale' | 'offline';
-export function useFeed() {
+export interface FeedRegion { lat: number; lon: number }
+export function useFeed(region: FeedRegion) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   const [receivedAt, setReceivedAt] = useState(0);
   const [attempt, setAttempt] = useState(0);
-  const socketRef = useRef<WebSocket | null>(null);
   const now = useClock();
 
   useEffect(() => {
+    const controller = new AbortController();
     let disposed = false;
-    let retryTimer: ReturnType<typeof setTimeout>;
-    let timeoutTimer: ReturnType<typeof setTimeout>;
-    let retries = 0;
-    const connect = () => {
-      if (disposed) return;
-      setConnection('connecting');
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
-      socketRef.current = socket;
-      timeoutTimer = setTimeout(() => socket.close(), 10000);
-      socket.onmessage = event => {
-        if (disposed) return;
-        try {
-          const value: unknown = JSON.parse(event.data);
-          if (!isSnapshot(value)) { setConnection('stale'); return; }
-          clearTimeout(timeoutTimer);
-          retries = 0;
-          setSnapshot(value);
-          setReceivedAt(Date.now());
-          setConnection('connected');
-        } catch { setConnection('stale'); }
-      };
-      socket.onerror = () => { if (!disposed) setConnection('offline'); };
-      socket.onclose = () => {
-        clearTimeout(timeoutTimer);
-        if (disposed) return;
-        setConnection('offline');
-        retryTimer = setTimeout(connect, Math.min(1000 * 2 ** retries++, 15000));
-      };
+    let timer: ReturnType<typeof setTimeout>;
+    const load = async () => {
+      setConnection(current => current === 'connected' ? 'stale' : 'connecting');
+      try {
+        const params = new URLSearchParams({ lat: region.lat.toFixed(4), lon: region.lon.toFixed(4) });
+        const response = await fetch(`/api/snapshot?${params}`, { signal: controller.signal, cache: 'no-store' });
+        const value: unknown = response.ok ? await response.json() : null;
+        if (!isSnapshot(value)) throw new Error('Invalid snapshot');
+        if (!disposed) { setSnapshot(value); setReceivedAt(Date.now()); setConnection('connected'); }
+      } catch (error) {
+        if (!disposed && !(error instanceof DOMException && error.name === 'AbortError')) setConnection(current => snapshot && current !== 'connecting' ? 'stale' : 'offline');
+      } finally {
+        if (!disposed) timer = setTimeout(load, 60000);
+      }
     };
-    connect();
+    void load();
     return () => {
       disposed = true;
-      clearTimeout(retryTimer);
-      clearTimeout(timeoutTimer);
-      socketRef.current?.close();
+      controller.abort();
+      clearTimeout(timer);
     };
-  }, [attempt]);
+  }, [region.lat, region.lon, attempt]);
 
-  const state: ConnectionState = connection === 'connected' && now - receivedAt > Math.max(6000, (snapshot?.intervalMs ?? 2000) * 3) ? 'stale' : connection;
+  const state: ConnectionState = connection === 'connected' && now - receivedAt > 120000 ? 'stale' : connection;
   return { snapshot, state, now, retry: useCallback(() => setAttempt(value => value + 1), []) };
 }

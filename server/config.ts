@@ -28,7 +28,6 @@ export function readConfig(env: Record<string, string | undefined>): ServerConfi
   const point = env.ADSB_POINT || '39,-98,250';
   const [lat, lon, radius] = point.split(',').map(Number);
   if (point.split(',').length !== 3 || ![lat, lon, radius].every(Number.isFinite) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || radius < 1 || radius > 250) throw new Error('ADSB_POINT must be latitude,longitude,radius (1–250 nautical miles).');
-  if (env.VERCEL && mode === 'false') throw new Error('Live polling on Vercel requires a shared provider cache/poller. Keep MOCK_DATA_MODE=true here; run the live backend as a single long-lived Node instance.');
   return {
     host: env.HOST || '127.0.0.1', port: integer('PORT', 3001, 1, 65535), mockMode: mode === 'true',
     seed: integer('MOCK_SEED', 42, 0, 4294967295),

@@ -16,32 +16,39 @@ page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error' && !message.text().includes('WebSocket')) errors.push(message.text()); });
 page.on('request', request => { if (!request.url().startsWith(base) && !request.url().startsWith('data:') && !request.url().startsWith('blob:')) externalRequests.push(request.url()); });
 
-let blockSockets = false;
-let suppressFrames = false;
-const sockets = [];
-await page.routeWebSocket('**/ws', route => {
-  if (blockSockets) { route.close(); return; }
-  const server = route.connectToServer();
-  server.onMessage(message => { if (!suppressFrames) route.send(message); });
-  sockets.push({ route, server });
+const requestedRegions = [];
+await page.route('**/api/snapshot?*', async route => {
+  const url = new URL(route.request().url());
+  requestedRegions.push([Number(url.searchParams.get('lat')), Number(url.searchParams.get('lon'))]);
+  const now = Date.now();
+  const entities = [
+    { id: 'adsblol-a1', layer: 'air', lat: 39.5, lon: -97.5, heading: 90, speed: 430, altitude: 34000, label: 'LIVE1', subtype: 'A320', origin: 'Unknown', destination: 'Unknown', source: 'adsblol', ts: now - 1000, provenance: 'LIVE', meta: { airline: 'Unknown', missingFields: [] } },
+    { id: 'adsblol-a2', layer: 'air', lat: 38.5, lon: -98.5, heading: 180, speed: 390, altitude: 8000, label: 'LIVE2', subtype: 'B738', origin: 'Unknown', destination: 'Unknown', source: 'adsblol', ts: now - 2000, provenance: 'LIVE', meta: { airline: 'Unknown', missingFields: [] } },
+  ];
+  await route.fulfill({ json: { type: 'snapshot', version: 1, mode: 'mixed', sequence: requestedRegions.length, generatedAt: now, intervalMs: 60000, counts: { air: 2, sea: 0, truck: 0 }, entities, feeds: [
+    { id: 'adsblol', layer: 'air', name: 'adsblol', health: 'healthy', provenance: 'LIVE', count: 2, updatedAt: now, message: 'Observed air traffic from adsblol.' },
+    { id: 'unavailable-sea', layer: 'sea', name: 'sea unavailable', health: 'offline', provenance: 'DELAYED', count: 0, updatedAt: now, message: 'No observed provider is connected.' },
+    { id: 'unavailable-truck', layer: 'truck', name: 'truck unavailable', health: 'offline', provenance: 'DELAYED', count: 0, updatedAt: now, message: 'No observed provider is connected.' },
+  ] } });
 });
 
 try {
   await page.goto(base, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-map-ready="true"]', { timeout: 30000 });
-  await page.getByText('Receiving every 2s', { exact: true }).waitFor();
-  assert.equal(await page.locator('[data-layer]').count(), 9);
-  assert.ok((await page.locator('.rendered-count').innerText()).replace(/\s+/g, ' ').includes('640 AIR DRAWN'));
-  assert.ok((await page.locator('.rendered-count').innerText()).includes('1,240'));
-  assert.equal(await page.getByRole('textbox', { name: 'Global search available in Phase 4' }).isDisabled(), true);
+  await page.getByText('Live region · refreshes every 60s', { exact: true }).waitFor();
+  assert.equal(await page.locator('[data-layer]').count(), 5);
+  assert.ok((await page.locator('.rendered-count').innerText()).replace(/\s+/g, ' ').includes('2 AIR DRAWN'));
+  assert.equal(await page.getByRole('textbox').count(), 0);
+  assert.equal(await page.getByText('REPLAY UNAVAILABLE').count(), 0);
+  assert.equal(await page.locator('[data-layer="sea"], [data-layer="truck"], [data-layer="ports"], [data-layer="corridors"]').count(), 0);
   await page.screenshot({ path: 'artifacts/argus-desktop.png', fullPage: true });
-  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '640');
+  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '2');
   await page.getByRole('combobox', { name: 'Air traffic Aircraft type', exact: true }).selectOption('A320');
-  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '160');
+  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '1');
   await page.getByRole('combobox', { name: 'Air traffic Altitude band', exact: true }).selectOption('low');
   assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '0');
   await page.getByRole('button', { name: 'Clear air filters', exact: true }).click();
-  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '640');
+  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '2');
   await page.getByRole('button', { name: 'Hide Air traffic', exact: true }).click();
   assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '0');
   await page.getByRole('button', { name: 'Show Air traffic', exact: true }).click();
@@ -64,10 +71,10 @@ try {
   await page.getByRole('button', { name: 'Reset layers', exact: true }).click();
 
   await page.getByRole('button', { name: 'Solo Air traffic', exact: true }).click();
-  assert.equal(await page.getByRole('button', { name: 'Show Sea traffic', exact: true }).getAttribute('aria-pressed'), 'false');
+  assert.equal(await page.getByRole('button', { name: 'Show Airports', exact: true }).getAttribute('aria-pressed'), 'false');
   assert.equal(await page.getByRole('button', { name: 'Hide Basemap', exact: true }).getAttribute('aria-pressed'), 'true');
   await page.getByRole('button', { name: 'Solo Air traffic', exact: true }).click();
-  assert.equal(await page.getByRole('button', { name: 'Hide Sea traffic', exact: true }).getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.getByRole('button', { name: 'Hide Airports', exact: true }).getAttribute('aria-pressed'), 'true');
 
   const handle = page.getByRole('button', { name: 'Reorder Air traffic; use up and down arrows', exact: true });
   await handle.focus();
@@ -96,21 +103,7 @@ try {
   await page.mouse.move(800, 350);
   assert.ok((await page.locator('.cursor-coordinates').innerText()).includes('°'));
 
-  suppressFrames = true;
-  sockets.at(-1).route.send(JSON.stringify({ type: 'snapshot', version: 1, mode: 'mock', feeds: [{ provenance: 'MODELED' }] }));
-  await page.getByText('Updates delayed · retaining buffer', { exact: true }).waitFor();
-  assert.ok((await page.locator('.rendered-count').innerText()).includes('1,240'), 'Malformed frames must preserve the last valid buffer');
-  suppressFrames = false;
-  await page.getByText('Receiving every 2s', { exact: true }).waitFor();
-
-  blockSockets = true;
-  for (const socket of sockets) { socket.route.close(); socket.server.close(); }
-  await page.getByText('Disconnected · reconnecting', { exact: true }).waitFor();
-  assert.ok((await page.locator('.rendered-count').innerText()).includes('1,240'), 'Retain buffered entities after disconnect');
-  assert.equal(await page.locator('[data-map-ready]').getAttribute('data-map-ready'), 'true');
-  blockSockets = false;
-  await page.getByRole('button', { name: 'Retry feed connection', exact: true }).click();
-  await page.getByText('Receiving every 2s', { exact: true }).waitFor();
+  assert.ok(requestedRegions.length >= 1);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'artifacts/argus-mobile.png', fullPage: true });
@@ -122,7 +115,7 @@ try {
   assert.equal(await page.getByRole('complementary', { name: 'Map layers', exact: true }).isVisible(), false);
   assert.deepEqual(externalRequests, [], 'Runtime assets must be local');
   assert.deepEqual(errors, [], 'No browser exceptions or unexpected console errors');
-  console.log('PASS: desktop/mobile shell, local assets, WebGL map, visibility, opacity, solo, keyboard/drag reorder, night mask, globe/2D, zoom, coordinates, disconnect/reconnect.');
+  console.log('PASS: observed HTTP feed, functional-only UI, desktop/mobile shell, WebGL map, visibility, opacity, solo, keyboard/drag reorder, night mask, globe/2D, zoom, and coordinates.');
   console.log('Screenshots: artifacts/argus-{desktop,globe,mobile}.png');
 } catch (error) {
   console.error('Browser errors:', errors);

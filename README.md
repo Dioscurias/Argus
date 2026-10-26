@@ -2,7 +2,7 @@
 
 Layered global traffic intelligence. **Phase 1: air traffic and airports.**
 
-A runnable Vite + React + TypeScript application with Blueprint's dark UI, MapLibre GL, a deck.gl overlay, and a Node/Express/WebSocket backend. All movement in this phase is **synthetic and labeled MODELED**. No API keys are required.
+A runnable Vite + React + TypeScript application with Blueprint's dark UI, MapLibre GL, a deck.gl overlay, and a Node/Express backend. Production displays observed aircraft from adsb.lol within 250 nautical miles of the current map center. No API key is required.
 
 ## Run
 
@@ -15,7 +15,7 @@ npm run dev
 
 Open **http://127.0.0.1:5173**. Vite serves the client and proxies `/api` and `/ws` to Express on port 3001. Both processes start and stop together.
 
-You do not need an `.env` file. To change the mock counts, seed, refresh interval, or backend port, copy `.env.example` to `.env` and edit it. Restart `npm run dev` after changing environment values. All API credentials are reserved for server-side use; never prefix credentials with `VITE_`.
+Local development defaults to deterministic mock mode. To use observations locally, copy `.env.example` to `.env`, set `MOCK_DATA_MODE=false`, and restart `npm run dev`. All provider configuration is server-side; never prefix credentials with `VITE_`.
 
 For a production build served by Express:
 
@@ -28,27 +28,20 @@ Open **http://127.0.0.1:3001**. Run these commands from the project root. The se
 
 ## Vercel deployment
 
-`vercel.json` builds the Vite client and deploys `api/server.ts` as the HTTP/WebSocket backend. `/ws`, `/api/health`, and `/api/snapshot` route to that server. No provider keys are required. The production runtime is pinned to Node 22.
-
-Vercel WebSocket connections end at the function's configured maximum duration (300 seconds); the client reconnects automatically. Synthetic positions use a fixed epoch so reconnecting to a different function instance does not reset routes. Polling and heartbeat timers run only while clients are connected. In-memory snapshots are per instance; future live providers and durable replay require shared external storage.
-
-Reference: [Vercel WebSockets](https://vercel.com/docs/functions/websockets).
+`vercel.json` builds the Vite client and deploys `api/server.ts` as the HTTP backend. The browser requests `/api/snapshot?lat=…&lon=…` when the region changes and every 60 seconds. The function validates and rounds coordinates, requests one adsb.lol 250-NM point region, and uses short process-local caching/backoff. It retains observations as `DELAYED` on transient failures and never substitutes modeled aircraft in live mode.
 
 ## What Phase 1 includes
 
 - The specified dark palette, Inter UI type, JetBrains Mono data type, Blueprint controls, command bar, layer stack, inspector shell, timeline shell, and status bar.
 - A pan/zoom reference map with 2D Mercator and globe projections, north reset, and world-view reset. Natural Earth country geometry, OurAirports large/medium airport points, and all fonts are bundled locally.
-- Aircraft icons rendered with deck.gl in both projections, hover details with provenance/source, and working altitude, airline, and aircraft-type filters. Mock mode draws 640 synthetic aircraft immediately.
+- Aircraft icons rendered with deck.gl in both projections, hover details with provenance/source, and working altitude, airline, and aircraft-type filters.
 - Separate server-side adapters for the official Flightradar24 SDK, OpenSky OAuth/anonymous REST, and adsb.lol point API. Observations are normalized to knots/feet/WGS84, old or retained positions are labeled DELAYED, and failures retain the reference map.
-- Nine modular layer definitions. Toggle visibility, set opacity, solo a layer, drag it to reorder, or focus its drag handle and use the up/down keys. Solo keeps the enabled basemap as geographic context and restores the previous visibility state when cleared. Explicit visibility changes exit solo. Reset restores the default layer stack. MapLibre layer draw order follows the stack from top to bottom; later layers draw above earlier layers.
+- Five functional layer definitions: basemap, graticule, day/night, airports, and observed aircraft. Toggle visibility, set opacity, solo a layer, drag it to reorder, or use its drag handle with the arrow keys.
 - Working basemap, 15° graticule, and approximate day/night mask. Static geography uses a REF badge; computed/synthetic layers use MODELED. The terminator refreshes every 60 seconds and is a visual approximation, not a navigation ephemeris.
-- Deterministic mock generation: by default, 640 aircraft, 420 vessels, and 180 trucks move along synthetic routes. Positions update every two seconds, normalize to one typed schema, and stream over WebSocket.
-- Short-TTL server caching, reconnect with bounded backoff, stale/offline feed states, WebSocket heartbeat and backpressure handling, and same-origin browser connection checks. The client retains the last buffer when disconnected; the local reference map stays available.
+- Abortable viewport polling, provider backoff, stale/offline feed states, and retained observations on provider failure. The local reference map stays available.
 - Responsive panels: at narrower sizes, use the layer/inspector buttons in the command bar.
 
-Sea and truck records remain buffered rather than rendered until Phases 2–3. Search and the full click inspector remain Phase 4.
-
-Green feed dots mean the **local synthetic stream** is healthy, never that a live provider is connected. Pending reference sources have hollow dots. On disconnect, counts and timestamps refer to the retained buffer. FPS is measured from actual map frames and displays `RENDER IDLE` when the map is not drawing; it is not a simulated performance counter.
+Unavailable features are not shown. Search, region-drawing tools, saved views, timeline replay, sea traffic, ports, freight corridors, and truck traffic were removed until real implementations exist. FPS is measured from actual map frames and displays `RENDER IDLE` when the map is not drawing.
 
 ## Staged delivery
 
@@ -61,7 +54,7 @@ Green feed dots mean the **local synthetic stream** is healthy, never that a liv
 | 4 | Search, entity inspector, regions, saved views, timeline replay | Pending |
 | 5 | High-volume rendering optimizations, full error-state pass, provider/license documentation | Pending |
 
-Upcoming controls are visibly disabled and carry their phase number. Phase 1 does not implement search, selection, track history, region filters, saved views, replay, or H3 bins. No 70,000-entity or 60 FPS performance claim is made yet.
+Phase 1 does not implement search, selection, track history, region drawing, saved views, replay, sea traffic, or truck traffic. These controls are absent rather than disabled. No 70,000-entity or 60 FPS performance claim is made.
 
 Truck records are synthetic development fixtures, **not** FHWA/FAF5 estimates and not observations. No public live global truck feed exists. `TruckProvider` is an extension point for a later telematics/HERE/TomTom integration.
 
@@ -95,7 +88,7 @@ Each entity has `id`, `layer` (`air | sea | truck`), `lat`, `lon`, `heading`, `s
 - Synthetic IDs/labels use `mock-`, `SIM`, or `SYNTH` prefixes. `meta.synthetic` is always true.
 - Synthetic route interpolation is piecewise linear and loops at its destination; it is not a physically faithful simulator or dead-reckoning implementation.
 
-`GET /api/health` returns current mock feed health. `GET /api/snapshot` returns the cached normalized snapshot. `WS /ws` immediately sends a versioned snapshot and broadcasts new snapshots at the configured interval. Configuration and credentials never appear in those responses. HTTP snapshot caching and upstream provider caching share the same server boundary; real provider rate limits are addressed when their integrations are added.
+`GET /api/health` returns feed health. `GET /api/snapshot?lat=39&lon=-98` returns a normalized observed snapshot for the 250-NM region. The browser polls over HTTP because a Vercel Function is not a durable shared WebSocket poller. Configuration never appears in responses.
 
 ## Verify
 
@@ -110,7 +103,7 @@ For browser checks, start `npm run dev` in another terminal, then:
 npm run test:browser
 ```
 
-The browser test uses installed Google Chrome on macOS, `CHROME_PATH` if supplied, or Playwright Chromium. On systems without either browser, install Chromium with `npx playwright install chromium`. `TEST_URL` can point the checks at a production Express instance instead. Browser tests expect the default mock counts and 2-second update interval. Screenshots are written to `artifacts/`.
+The browser test uses installed Google Chrome on macOS, `CHROME_PATH` if supplied, or Playwright Chromium. It intercepts the provider snapshot with deterministic observed fixtures while exercising the browser. `TEST_URL` can point the checks at production. Screenshots are written to `artifacts/`.
 
 Tests cover deterministic provenance and valid movement, cache expiration, layer state behavior, configuration errors, HTTP/WebSocket agreement and origin checks, map controls and actual pixel changes, local-only assets, keyboard/drag layer reordering, disconnect recovery, and narrow screens.
 
@@ -119,6 +112,7 @@ Tests cover deterministic provenance and valid movement, cache expiration, layer
 - [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/) country geometry is public domain. The bundled dataset is Natural Earth 1:110m Admin 0 Countries; boundaries are cartographic reference, not a statement of sovereignty. See `public/data/README.md` for the exact upstream source.
 - [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js) uses BSD-3-Clause; [deck.gl](https://github.com/visgl/deck.gl) uses MIT; [Blueprint](https://github.com/palantir/blueprint) uses Apache-2.0. Package licenses remain in `node_modules` after installation.
 - Inter and JetBrains Mono are bundled through Fontsource under their SIL Open Font Licenses.
+- [adsb.lol](https://www.adsb.lol/docs/open-data/) observations are licensed under ODbL 1.0. Its public API is free, but adsb.lol asks production consumers to contact the operator so changes do not unexpectedly break an application.
 - UI styling follows the requested analytical design language. ARGUS is not affiliated with or endorsed by Palantir.
 - No `fr24-3d-models` assets are included. That optional library is GPL-2.0; using it later requires reviewing the distribution/license implications first. Default future aircraft rendering will use simple SVG sprites.
 - Real air/AIS/airport/port/freight sources are not bundled or contacted in Phase 0. Provider acquisition instructions, terms, rate limits, and fuller source attribution belong with their implementation phases and the Phase 5 documentation pass.

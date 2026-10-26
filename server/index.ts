@@ -6,7 +6,7 @@ try {
   const config = readConfig(process.env);
   const app = createArgusServer(config);
   await app.listen();
-  console.log(`ARGUS API  http://${config.host}:${config.port}  |  PHASE 1 · ${config.mockMode ? 'MODELED DATA ONLY' : 'OBSERVED AIR / MODELED SEA & TRUCKS'}`);
+  console.log(`ARGUS API  http://${config.host}:${config.port}  |  ${config.mockMode ? 'MODELED DEVELOPMENT DATA' : 'OBSERVED AIR · ADSB.LOL'}`);
   let stopping = false;
   const stop = async () => {
     if (stopping) return;

@@ -57,7 +57,7 @@ test('solo temporarily isolates a layer and restores previous visibility', () =>
   const initial = { layers: initialLayers(), soloId: null };
   const solo = layerReducer(initial, { type: 'solo', id: 'air' });
   assert.ok(isLayerVisible(solo, 'air'));
-  assert.ok(!isLayerVisible(solo, 'sea'));
+  assert.ok(!isLayerVisible(solo, 'airports'));
   assert.ok(isLayerVisible(solo, 'basemap'));
   const restored = layerReducer(solo, { type: 'solo', id: 'air' });
   assert.deepEqual(restored, initial);
@@ -67,7 +67,7 @@ test('reorder keeps every layer once, and opacity stays within bounds', () => {
   const initial = { layers: initialLayers(), soloId: null };
   const next = layerReducer(initial, { type: 'move', id: 'air', targetId: 'graticule' });
   assert.equal(next.layers[1].id, 'air');
-  assert.equal(new Set(next.layers.map(l => l.id)).size, 9);
+  assert.equal(new Set(next.layers.map(l => l.id)).size, 5);
   assert.equal(initial.layers[1].id, 'graticule');
   const opacity = layerReducer(next, { type: 'opacity', id: 'air', value: 4 });
   assert.equal(opacity.layers.find(l => l.id === 'air')?.opacity, 1);
@@ -79,8 +79,8 @@ test('explicit visibility controls exit solo and apply the visible action', () =
   const hidden = layerReducer(solo, { type: 'toggle', id: 'graticule' });
   assert.equal(isLayerVisible(hidden, 'graticule'), false);
   assert.equal(hidden.soloId, null);
-  const shown = layerReducer(solo, { type: 'toggle', id: 'sea' });
-  assert.equal(isLayerVisible(shown, 'sea'), true);
+  const shown = layerReducer(solo, { type: 'toggle', id: 'airports' });
+  assert.equal(isLayerVisible(shown, 'airports'), true);
   assert.equal(shown.soloId, null);
 });
 
@@ -106,7 +106,9 @@ test('configuration defaults to mock and validates live provider settings', () =
   assert.equal(config.mockMode, true);
   assert.equal(config.port, 3001);
   assert.equal(readConfig({ MOCK_DATA_MODE: 'false' }).mockMode, false);
-  assert.throws(() => readConfig({ MOCK_DATA_MODE: 'false', VERCEL: '1' }), /shared provider cache/);
+  const vercelLive = readConfig({ MOCK_DATA_MODE: 'false', VERCEL: '1', AIR_PROVIDER: 'adsblol' });
+  assert.equal(vercelLive.mockMode, false);
+  assert.equal(vercelLive.air.provider, 'adsblol');
   assert.throws(() => readConfig({ AIR_BOUNDS: '100,0,0,10' }), /AIR_BOUNDS/);
   assert.throws(() => readConfig({ MOCK_DATA_MODE: 'oops' }), /MOCK_DATA_MODE/);
   assert.throws(() => readConfig({ PORT: 'oops' }), /PORT/);

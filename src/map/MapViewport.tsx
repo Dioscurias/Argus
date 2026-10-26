@@ -21,6 +21,7 @@ interface Props {
   aircraft: Entity[];
   onCursor: (coordinates: [number, number]) => void;
   onFps: (fps: number | null) => void;
+  onRegion: (region: { lat: number; lon: number }) => void;
 }
 
 function overviewZoom(map: Map, projection: Projection) {
@@ -48,16 +49,16 @@ function applyStack(map: Map, stack: LayerStack) {
   }
 }
 
-export function MapViewport({ projection, stack, aircraft, onCursor, onFps }: Props) {
+export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRegion }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const deckRef = useRef<MapboxOverlay | null>(null);
   const stackRef = useRef(stack);
   const projectionRef = useRef(projection);
-  const callbacks = useRef({ onCursor, onFps });
+  const callbacks = useRef({ onCursor, onFps, onRegion });
   stackRef.current = stack;
   projectionRef.current = projection;
-  callbacks.current = { onCursor, onFps };
+  callbacks.current = { onCursor, onFps, onRegion };
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -75,7 +76,7 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps }: Pr
     try {
       map = new Map({
         container: container.current,
-        style: createMapStyle(), center: [0, 22], zoom: 1.05, minZoom: 0, maxZoom: 9,
+        style: createMapStyle(), center: [-98, 39], zoom: 3, minZoom: 0, maxZoom: 9,
         attributionControl: false, renderWorldCopies: false, canvasContextAttributes: { antialias: true },
       });
     } catch {
@@ -91,7 +92,7 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps }: Pr
       await document.fonts.ready;
       if (disposed) return;
       map.setProjection({ type: projectionRef.current });
-      map.jumpTo({ zoom: overviewZoom(map, projectionRef.current) });
+      map.jumpTo({ zoom: 3 });
       addReferenceLabels(map);
       map.addControl(deck);
       applyStack(map, stackRef.current);
@@ -104,6 +105,7 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps }: Pr
     });
     map.on('mouseout', () => { setHover(null); setAirportHover(null); });
     map.on('move', () => { setZoom(map.getZoom()); setBearing(map.getBearing()); });
+    map.on('moveend', () => { const center = map.getCenter(); callbacks.current.onRegion({ lat: center.lat, lon: center.lng }); });
     map.on('error', event => { console.error('Map error:', event.error.message); setError('Local map data could not load. Retry to restore the reference map.'); });
     map.on('render', () => {
       const now = performance.now();
@@ -152,16 +154,16 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps }: Pr
 
   const reset = () => {
     const map = mapRef.current;
-    map?.flyTo({ center: [0, 22], zoom: overviewZoom(map, projection), bearing: 0, pitch: 0, duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600 });
+    map?.flyTo({ center: [-98, 39], zoom: 3, bearing: 0, pitch: 0, duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600 });
   };
   return <section className="map-viewport" aria-label="Global reference map" data-projection={projection} data-map-ready={loaded} data-aircraft-count={isLayerVisible(stack, 'air') ? aircraft.length : 0}>
     <div className="map-canvas" ref={container}/>
-    <div className="map-context"><span className="eyebrow">GLOBAL OPERATING PICTURE</span><div>World overview <span>/</span> <span className="muted">{projection === 'globe' ? 'Globe' : 'Mercator'}</span></div></div>
+    <div className="map-context"><span className="eyebrow">LIVE OPERATING PICTURE</span><div>Regional coverage <span>/</span> <span className="muted">{projection === 'globe' ? 'Globe' : 'Mercator'}</span></div></div>
     <div className="map-top-right"><span className="map-reference-tag"><span className="health-dot healthy"/> LOCAL BASEMAP</span></div>
-    <div className="map-toolrail" aria-label="Map tools"><Button minimal title="Pan map" aria-label="Pan map" active><Icon name="cursor"/></Button><Button minimal disabled title="Box region filter · Phase 4" aria-label="Box region filter available in Phase 4"><Icon name="box"/></Button><Button minimal disabled title="Circle region filter · Phase 4" aria-label="Circle region filter available in Phase 4"><Icon name="crosshair"/></Button><span className="tool-separator"/><Button minimal disabled title="Saved views · Phase 4" aria-label="Saved views available in Phase 4"><Icon name="bookmark"/></Button></div>
+    <div className="map-toolrail" aria-label="Map tools"><Button minimal title="Pan map" aria-label="Pan map" active><Icon name="cursor"/></Button></div>
     <div className="map-navigation"><Button minimal aria-label="Reset north" title="Reset north" className="north-button" onClick={() => mapRef.current?.resetNorth()}><span>N</span><svg width="16" height="18" viewBox="0 0 16 18" style={{ transform: `rotate(${-bearing}deg)` }} aria-hidden="true"><path d="m8 1 6 15-6-4-6 4Z" fill="none" stroke="currentColor"/></svg></Button><div className="zoom-buttons"><Button minimal aria-label="Zoom in" title="Zoom in" onClick={() => mapRef.current?.zoomIn()}><Icon name="plus"/></Button><Button minimal aria-label="Zoom out" title="Zoom out" onClick={() => mapRef.current?.zoomOut()}><Icon name="minus"/></Button></div><Button minimal aria-label="Reset map view" title="Reset world overview" onClick={reset}><Icon name="globe"/></Button></div>
     <div className="map-bottom-left"><span className="coordinate-tick"/><span className="mono">WGS84</span><span className="map-coordinate-divider">/</span><span className="mono">ZOOM {zoom.toFixed(2)}</span></div>
-    <div className="map-phase-note"><span className="phase-index"><Icon name="air" size={20}/></span><div><strong>{isLayerVisible(stack, 'air') ? `${formatCount(aircraft.length)} aircraft in air layer` : 'Air layer hidden'}</strong><span>Hover aircraft or airports for details. Sea traffic arrives in Phase 2.</span></div></div>
+    <div className="map-phase-note"><span className="phase-index"><Icon name="air" size={20}/></span><div><strong>{isLayerVisible(stack, 'air') ? `${formatCount(aircraft.length)} observed aircraft` : 'Air layer hidden'}</strong><span>Pan the map to load a new 250-NM live region.</span></div></div>
     {hover && isLayerVisible(stack, 'air') && <div className="map-tooltip" style={{ left: Math.max(8, Math.min(hover.x + 15, (container.current?.clientWidth ?? 300) - 260)), top: Math.max(8, Math.min(hover.y + 15, (container.current?.clientHeight ?? 300) - 145)) }}>
       <div><strong className="mono">{hover.entity.label}</strong><Badge value={hover.entity.provenance}/></div>
       <span>{hover.entity.subtype} · {String(hover.entity.meta.airline ?? 'Unknown')}</span>
