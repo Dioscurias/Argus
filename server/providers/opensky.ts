@@ -6,11 +6,12 @@ export class OpenSkyProvider implements AirProvider {
   minIntervalMs: number;
   private token = '';
   private expiresAt = 0;
-  constructor(private readonly bounds: string, private readonly clientId = '', private readonly clientSecret = '') {
+  constructor(private readonly bounds: string, private readonly clientId = '', private readonly clientSecret = '', private readonly proxyUrl = '', private readonly proxyToken = '') {
     // Conservative daily budgets: up to 4 credits per request, 400 anonymous / 4000 authenticated.
     this.minIntervalMs = clientId && clientSecret ? 90000 : 900000;
   }
   async poll(now: number) {
+    if (this.proxyUrl && this.proxyToken) return normalizeOpenSky(await getJson(this.proxyUrl, { headers: { Authorization: `Bearer ${this.proxyToken}` } }), now);
     if (this.clientId && this.clientSecret && now >= this.expiresAt) {
       try {
         const result = await getJson('https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token', {

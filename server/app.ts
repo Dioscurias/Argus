@@ -20,7 +20,7 @@ export function createArgusServer(config: ServerConfig) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 4096, perMessageDeflate: false });
   // A fixed epoch keeps synthetic positions consistent across cold starts and instances.
   const provider = new MockProvider({ seed: config.seed, counts: config.counts, epoch: Date.UTC(2026, 0, 1) });
-  const makeAirProvider = (name: 'fr24' | 'opensky' | 'adsblol'): AirProvider => name === 'opensky' ? new OpenSkyProvider(config.air.bounds, config.air.clientId, config.air.clientSecret)
+  const makeAirProvider = (name: 'fr24' | 'opensky' | 'adsblol'): AirProvider => name === 'opensky' ? new OpenSkyProvider(config.air.bounds, config.air.clientId, config.air.clientSecret, config.air.proxyUrl, config.air.proxyToken)
     : name === 'adsblol' ? new AdsbLolProvider(config.air.point)
     : config.air.fr24Key ? new Fr24Provider(config.air.fr24Key, config.air.bounds)
     : { id: 'fr24', minIntervalMs: 60000, poll: async () => { throw new ProviderError(); } };
