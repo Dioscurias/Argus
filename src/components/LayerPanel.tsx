@@ -55,8 +55,8 @@ export function LayerPanel({ stack, dispatch, snapshot, connection }: Props) {
             <div className="opacity-label"><label id={`opacity-${layer.id}`}>OPACITY</label><span className="mono">{Math.round(layer.opacity * 100)}%</span></div>
             <Slider min={0} max={100} stepSize={1} labelRenderer={false} value={Math.round(layer.opacity * 100)} onChange={value => dispatch({ type: 'opacity', id: layer.id, value: value / 100 })} handleHtmlProps={{ 'aria-label': `${layer.name} opacity` }}/>
             <p className="layer-description">{layer.description}</p>
-            {layer.filters && <div className="layer-filters"><div className="eyebrow">FILTERS <span>{layer.id === 'air' ? 'ACTIVE' : `PHASE ${layer.phase}`}</span></div>{layer.filters.map((filter, index) => {
-              const key = (['altitude', 'airline', 'aircraft'] as const)[index];
+            {layer.filters && <div className="layer-filters"><div className="eyebrow">FILTERS <span>{layer.id === 'air' ? 'ACTIVE' : `PHASE ${layer.phase}`}</span></div>{layer.filters.map(filter => {
+              const key: keyof AirFilters = filter === 'Altitude band' ? 'altitude' : filter === 'Aircraft type' ? 'aircraft' : 'airline';
               return <label className="filter-row" key={filter}><span>{filter}</span><HTMLSelect disabled={layer.id !== 'air'} aria-label={`${layer.name} ${filter}`} value={layer.id === 'air' ? filters[key] : 'all'} onChange={event => dispatch({ type: 'air-filter', key, value: event.target.value })} options={layer.id === 'air' ? filterOptions[key] : [{ label: 'All', value: 'all' }]}/></label>;
             })}{layer.id === 'air' && <Button minimal small onClick={() => (Object.keys(defaultAirFilters) as (keyof AirFilters)[]).forEach(key => dispatch({ type: 'air-filter', key, value: 'all' }))}>Clear air filters</Button>}</div>}
             <div className="layer-update"><span>LAST UPDATE</span><span className="mono">{feed ? `${utcTime(feed.updatedAt)}Z` : layer.phase === 0 ? layer.id === 'terminator' ? 'COMPUTED / 60s' : 'BUNDLED' : '—'}</span></div>

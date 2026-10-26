@@ -2,7 +2,7 @@ import type { LayerDefinition } from './types';
 import { IconLayer } from '@deck.gl/layers';
 import type { Entity } from '../../shared/schema';
 import type { PickingInfo } from '@deck.gl/core';
-export const airLayer: LayerDefinition = { id: 'air', name: 'Air traffic', description: 'Aircraft positions · hover for details', icon: 'air', color: '#4C90F0', provenance: 'MODELED', phase: 1, defaultVisible: true, transport: 'air', filters: ['Altitude band', 'Airline', 'Aircraft type'] };
+export const airLayer: LayerDefinition = { id: 'air', name: 'Air traffic', description: 'Aircraft positions · hover for details', icon: 'air', color: '#4C90F0', provenance: 'LIVE', phase: 1, defaultVisible: true, transport: 'air', filters: ['Altitude band', 'Aircraft type'] };
 
 export function createAircraftLayer(data: Entity[], visible: boolean, opacity: number, onHover: (info: PickingInfo<Entity>) => void) {
   return new IconLayer<Entity, { beforeId: string }>({

@@ -8,7 +8,7 @@ export interface LayerDefinition {
   description: string;
   icon: 'map' | 'grid' | 'moon' | 'pin' | 'air' | 'anchor' | 'sea' | 'route' | 'truck';
   color: string;
-  provenance: 'REFERENCE' | 'MODELED' | 'COMPUTED';
+  provenance: 'REFERENCE' | 'MODELED' | 'COMPUTED' | 'LIVE';
   phase: 0 | 1 | 2 | 3;
   defaultVisible: boolean;
   transport?: TransportLayer;
