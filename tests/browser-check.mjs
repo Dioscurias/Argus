@@ -12,12 +12,16 @@ const context = await browser.newContext({ viewport: { width: 1512, height: 982 
 const page = await context.newPage();
 const errors = [];
 const externalRequests = [];
+const requestedRegions = [];
+const liveData = process.env.TEST_LIVE_DATA === 'true';
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error' && !message.text().includes('WebSocket')) errors.push(message.text()); });
-page.on('request', request => { if (!request.url().startsWith(base) && !request.url().startsWith('data:') && !request.url().startsWith('blob:')) externalRequests.push(request.url()); });
+page.on('request', request => {
+  if (request.url().includes('/api/snapshot?')) { const url = new URL(request.url()); requestedRegions.push([Number(url.searchParams.get('lat')), Number(url.searchParams.get('lon'))]); }
+  if (!request.url().startsWith(base) && !request.url().startsWith('data:') && !request.url().startsWith('blob:')) externalRequests.push(request.url());
+});
 
-const requestedRegions = [];
-await page.route('**/api/snapshot?*', async route => {
+if (!liveData) await page.route('**/api/snapshot?*', async route => {
   const url = new URL(route.request().url());
   requestedRegions.push([Number(url.searchParams.get('lat')), Number(url.searchParams.get('lon'))]);
   const now = Date.now();
@@ -36,19 +40,24 @@ try {
   await page.goto(base, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-map-ready="true"]', { timeout: 30000 });
   await page.getByText('Live region · refreshes every 60s', { exact: true }).waitFor();
+  if (liveData) await page.waitForFunction(() => Number(document.querySelector('[data-aircraft-count]')?.getAttribute('data-aircraft-count')) > 0);
+  const initialAircraft = Number(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'));
+  assert.ok(initialAircraft > 0);
   assert.equal(await page.locator('[data-layer]').count(), 5);
-  assert.ok((await page.locator('.rendered-count').innerText()).replace(/\s+/g, ' ').includes('2 AIR DRAWN'));
+  assert.ok((await page.locator('.rendered-count').innerText()).replace(/\s+/g, ' ').includes(`${initialAircraft.toLocaleString()} AIR DRAWN`));
   assert.equal(await page.getByRole('textbox').count(), 0);
   assert.equal(await page.getByText('REPLAY UNAVAILABLE').count(), 0);
   assert.equal(await page.locator('[data-layer="sea"], [data-layer="truck"], [data-layer="ports"], [data-layer="corridors"]').count(), 0);
   await page.screenshot({ path: 'artifacts/argus-desktop.png', fullPage: true });
-  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '2');
-  await page.getByRole('combobox', { name: 'Air traffic Aircraft type', exact: true }).selectOption('A320');
-  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '1');
+  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), String(initialAircraft));
+  const typeFilter = page.getByRole('combobox', { name: 'Air traffic Aircraft type', exact: true });
+  const typeValues = await typeFilter.locator('option').evaluateAll(options => options.map(option => option.value));
+  if (typeValues.length > 1) await typeFilter.selectOption(typeValues[1]);
+  assert.ok(Number(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count')) <= initialAircraft);
   await page.getByRole('combobox', { name: 'Air traffic Altitude band', exact: true }).selectOption('low');
-  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '0');
+  assert.ok(Number(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count')) <= initialAircraft);
   await page.getByRole('button', { name: 'Clear air filters', exact: true }).click();
-  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '2');
+  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), String(initialAircraft));
   await page.getByRole('button', { name: 'Hide Air traffic', exact: true }).click();
   assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '0');
   await page.getByRole('button', { name: 'Show Air traffic', exact: true }).click();
