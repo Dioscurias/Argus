@@ -1,6 +1,6 @@
 import type { Entity } from '../../shared/schema.js';
 export interface AirProvider {
-  readonly id: 'fr24' | 'opensky' | 'adsblol';
+  readonly id: 'fr24' | 'opensky' | 'adsblol' | 'adsblol-global';
   readonly minIntervalMs: number;
   poll(now: number): Promise<Entity[]>;
   dispose?(): void;

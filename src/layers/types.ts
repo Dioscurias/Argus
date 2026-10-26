@@ -1,7 +1,7 @@
 import type { TransportLayer } from '../../shared/schema';
 import type { AirFilters } from './air-filters';
 
-export type LayerId = 'basemap' | 'graticule' | 'terminator' | 'airports' | 'air' | 'ports' | 'sea' | 'corridors' | 'truck';
+export type LayerId = 'basemap' | 'graticule' | 'airports' | 'air' | 'ports' | 'sea' | 'corridors' | 'truck';
 export interface LayerDefinition {
   id: LayerId;
   name: string;

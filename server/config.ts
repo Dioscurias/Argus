@@ -7,7 +7,7 @@ export interface ServerConfig {
   pollIntervalMs: number;
   cacheTtlMs: number;
   clientOrigin?: string;
-  air: { provider: 'fr24' | 'opensky' | 'adsblol'; fallback: 'opensky' | 'adsblol' | 'none'; bounds: string; point: string; intervalMs: number; fr24Key: string; clientId: string; clientSecret: string; proxyUrl: string; proxyToken: string };
+  air: { provider: 'fr24' | 'opensky' | 'adsblol' | 'adsblol-global'; fallback: 'opensky' | 'adsblol' | 'none'; bounds: string; point: string; intervalMs: number; fr24Key: string; clientId: string; clientSecret: string; proxyUrl: string; proxyToken: string };
 }
 
 export function readConfig(env: Record<string, string | undefined>): ServerConfig {
@@ -20,7 +20,7 @@ export function readConfig(env: Record<string, string | undefined>): ServerConfi
   if (!['true', 'false'].includes(mode)) throw new Error('MOCK_DATA_MODE must be true or false.');
   const airProvider = env.AIR_PROVIDER || 'fr24';
   const fallback = env.AIR_FALLBACK_PROVIDER || 'opensky';
-  if (!['fr24', 'opensky', 'adsblol'].includes(airProvider)) throw new Error('Invalid AIR_PROVIDER');
+  if (!['fr24', 'opensky', 'adsblol', 'adsblol-global'].includes(airProvider)) throw new Error('Invalid AIR_PROVIDER');
   if (!['opensky', 'adsblol', 'none'].includes(fallback)) throw new Error('Invalid AIR_FALLBACK_PROVIDER');
   const bounds = env.AIR_BOUNDS || '90,-90,-180,180';
   const [north, south, west, east] = bounds.split(',').map(Number);

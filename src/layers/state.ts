@@ -1,13 +1,12 @@
 import { basemapLayer } from './BasemapLayer';
 import { graticuleLayer } from './GraticuleLayer';
-import { terminatorLayer } from './TerminatorLayer';
 import { airportsLayer } from './AirportsLayer';
 import { airLayer } from './AirLayer';
 import type { LayerId, LayerStack, LayerState } from './types';
 import { defaultAirFilters, type AirFilters } from './air-filters';
 
-const definitions = [basemapLayer, graticuleLayer, terminatorLayer, airportsLayer, airLayer];
-export const initialLayers = (): LayerState[] => definitions.map(layer => ({ ...layer, visible: layer.defaultVisible, opacity: layer.id === 'graticule' ? 0.35 : layer.id === 'terminator' ? 0.45 : 1 }));
+const definitions = [basemapLayer, graticuleLayer, airportsLayer, airLayer];
+export const initialLayers = (): LayerState[] => definitions.map(layer => ({ ...layer, visible: layer.defaultVisible, opacity: layer.id === 'graticule' ? 0.35 : 1 }));
 export type LayerAction =
   | { type: 'toggle'; id: LayerId }
   | { type: 'solo'; id: LayerId }

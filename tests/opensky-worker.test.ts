@@ -14,6 +14,23 @@ test('OpenSky proxy rejects unauthenticated requests', async () => {
   assert.equal(response.status, 401);
 });
 
+test('OpenSky proxy logs safe OAuth failure metadata', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalError = console.error;
+  const logs: string[] = [];
+  globalThis.fetch = async () => Response.json({ error: 'invalid_client' }, { status: 401 });
+  console.error = (message) => logs.push(String(message));
+  try {
+    const response = await worker.fetch(new Request('https://proxy.example/states', { headers: { Authorization: 'Bearer proxy' } }), { ARGUS_PROXY_TOKEN: 'proxy', OPENSKY_CLIENT_ID: 'client', OPENSKY_CLIENT_SECRET: 'secret' });
+    assert.equal(response.status, 502);
+    assert.match(logs.join('\n'), /"status":401/);
+    assert.match(logs.join('\n'), /"upstreamError":"invalid_client"/);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalError;
+  }
+});
+
 test('OpenSky proxy exchanges OAuth credentials and forwards global states', async () => {
   const original = globalThis.fetch;
   const calls: string[] = [];

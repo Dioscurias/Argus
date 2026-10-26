@@ -4,7 +4,11 @@ async function accessToken(env: Env) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'client_credentials', client_id: env.OPENSKY_CLIENT_ID, client_secret: env.OPENSKY_CLIENT_SECRET }),
   });
-  if (!response.ok) return null;
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({})) as { error?: string };
+    console.error(JSON.stringify({ message: 'OpenSky OAuth rejected', status: response.status, upstreamError: result.error ?? 'unknown' }));
+    return null;
+  }
   const result = await response.json() as { access_token?: string; expires_in?: number };
   if (!result.access_token) return null;
   return result.access_token;

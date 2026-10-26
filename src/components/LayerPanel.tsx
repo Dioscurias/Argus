@@ -59,7 +59,7 @@ export function LayerPanel({ stack, dispatch, snapshot, connection }: Props) {
               const key: keyof AirFilters = filter === 'Altitude band' ? 'altitude' : filter === 'Aircraft type' ? 'aircraft' : 'airline';
               return <label className="filter-row" key={filter}><span>{filter}</span><HTMLSelect disabled={layer.id !== 'air'} aria-label={`${layer.name} ${filter}`} value={layer.id === 'air' ? filters[key] : 'all'} onChange={event => dispatch({ type: 'air-filter', key, value: event.target.value })} options={layer.id === 'air' ? filterOptions[key] : [{ label: 'All', value: 'all' }]}/></label>;
             })}{layer.id === 'air' && <Button minimal small onClick={() => (Object.keys(defaultAirFilters) as (keyof AirFilters)[]).forEach(key => dispatch({ type: 'air-filter', key, value: 'all' }))}>Clear air filters</Button>}</div>}
-            <div className="layer-update"><span>LAST UPDATE</span><span className="mono">{feed ? `${utcTime(feed.updatedAt)}Z` : layer.phase === 0 ? layer.id === 'terminator' ? 'COMPUTED / 60s' : 'BUNDLED' : '—'}</span></div>
+            <div className="layer-update"><span>LAST UPDATE</span><span className="mono">{feed ? `${utcTime(feed.updatedAt)}Z` : layer.phase === 0 ? 'BUNDLED' : '—'}</span></div>
           </div>}
         </section>;
       })}

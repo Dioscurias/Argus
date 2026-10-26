@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@blueprintjs/core';
-import { Map, type GeoJSONSource } from 'maplibre-gl';
+import { Map } from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import { Icon } from '../components/Icon';
 import { createMapStyle, mapLayerIds } from './style';
 import { addReferenceLabels } from './labels';
-import { makeNightMask } from './geography';
 import { isLayerVisible } from '../layers/state';
 import type { LayerStack } from '../layers/types';
 import type { Entity } from '../../shared/schema';
@@ -120,14 +119,12 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
       const fps = performance.now() - lastFrame < 250 && samples.length >= 3 ? Math.round(1000 / (samples.reduce((sum, sample) => sum + sample, 0) / samples.length)) : null;
       callbacks.current.onFps(fps);
     }, 1000);
-    const nightTimer = setInterval(() => (map.getSource('night') as GeoJSONSource | undefined)?.setData(makeNightMask(Date.now())), 60000);
     const observer = new ResizeObserver(() => map.resize());
     observer.observe(container.current);
     return () => {
       disposed = true;
       observer.disconnect();
       clearInterval(statsTimer);
-      clearInterval(nightTimer);
       map.remove();
       mapRef.current = null;
       deckRef.current = null;
@@ -167,7 +164,7 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
     <div className="map-toolrail" aria-label="Map tools"><Button minimal title="Pan map" aria-label="Pan map" active><Icon name="cursor"/></Button></div>
     <div className="map-navigation"><Button minimal aria-label="Reset north" title="Reset north" className="north-button" onClick={() => mapRef.current?.resetNorth()}><span>N</span><svg width="16" height="18" viewBox="0 0 16 18" style={{ transform: `rotate(${-bearing}deg)` }} aria-hidden="true"><path d="m8 1 6 15-6-4-6 4Z" fill="none" stroke="currentColor"/></svg></Button><div className="zoom-buttons"><Button minimal aria-label="Zoom in" title="Zoom in" onClick={() => mapRef.current?.zoomIn()}><Icon name="plus"/></Button><Button minimal aria-label="Zoom out" title="Zoom out" onClick={() => mapRef.current?.zoomOut()}><Icon name="minus"/></Button></div><Button minimal aria-label="Reset map view" title="Reset world overview" onClick={reset}><Icon name="globe"/></Button></div>
     <div className="map-bottom-left"><span className="coordinate-tick"/><span className="mono">WGS84</span><span className="map-coordinate-divider">/</span><span className="mono">ZOOM {zoom.toFixed(2)}</span></div>
-    <div className="map-phase-note"><span className="phase-index"><Icon name="air" size={20}/></span><div><strong>{isLayerVisible(stack, 'air') ? `${formatCount(aircraft.length)} observed aircraft` : 'Air layer hidden'}</strong><span>{globalCoverage ? 'OpenSky network state vectors worldwide.' : 'Pan the map to load a new 250-NM live region.'}</span></div></div>
+    <div className="map-phase-note"><span className="phase-index"><Icon name="air" size={20}/></span><div><strong>{isLayerVisible(stack, 'air') ? `${formatCount(aircraft.length)} observed aircraft` : 'Air layer hidden'}</strong><span>{globalCoverage ? 'Worldwide ADS-B observations.' : 'Pan the map to load a new 250-NM live region.'}</span></div></div>
     {hover && isLayerVisible(stack, 'air') && <div className="map-tooltip" style={{ left: Math.max(8, Math.min(hover.x + 15, (container.current?.clientWidth ?? 300) - 260)), top: Math.max(8, Math.min(hover.y + 15, (container.current?.clientHeight ?? 300) - 145)) }}>
       <div><strong className="mono">{hover.entity.label}</strong><Badge value={hover.entity.provenance}/></div>
       <span>{hover.entity.subtype} · {String(hover.entity.meta.airline ?? 'Unknown')}</span>

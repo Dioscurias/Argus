@@ -67,7 +67,7 @@ test('reorder keeps every layer once, and opacity stays within bounds', () => {
   const initial = { layers: initialLayers(), soloId: null };
   const next = layerReducer(initial, { type: 'move', id: 'air', targetId: 'graticule' });
   assert.equal(next.layers[1].id, 'air');
-  assert.equal(new Set(next.layers.map(l => l.id)).size, 5);
+  assert.equal(new Set(next.layers.map(l => l.id)).size, initial.layers.length);
   assert.equal(initial.layers[1].id, 'graticule');
   const opacity = layerReducer(next, { type: 'opacity', id: 'air', value: 4 });
   assert.equal(opacity.layers.find(l => l.id === 'air')?.opacity, 1);
@@ -109,6 +109,7 @@ test('configuration defaults to mock and validates live provider settings', () =
   const vercelLive = readConfig({ MOCK_DATA_MODE: 'false', VERCEL: '1', AIR_PROVIDER: 'adsblol' });
   assert.equal(vercelLive.mockMode, false);
   assert.equal(vercelLive.air.provider, 'adsblol');
+  assert.equal(readConfig({ MOCK_DATA_MODE: 'false', AIR_PROVIDER: 'adsblol-global' }).air.provider, 'adsblol-global');
   assert.throws(() => readConfig({ AIR_BOUNDS: '100,0,0,10' }), /AIR_BOUNDS/);
   assert.throws(() => readConfig({ MOCK_DATA_MODE: 'oops' }), /MOCK_DATA_MODE/);
   assert.throws(() => readConfig({ PORT: 'oops' }), /PORT/);

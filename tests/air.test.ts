@@ -4,7 +4,7 @@ import { normalizeFr24, normalizeOpenSky, normalizeAdsb } from '../server/provid
 import { filterAircraft } from '../src/layers/air-filters.js';
 import { AirFeed } from '../server/air-feed.js';
 import { getJson, ProviderError, type AirProvider } from '../server/providers/air-provider.js';
-import { AdsbLolProvider } from '../server/providers/adsblol.js';
+import { AdsbLolGlobalProvider, AdsbLolProvider } from '../server/providers/adsblol.js';
 import { OpenSkyProvider } from '../server/providers/opensky.js';
 
 const now = 1800000000000;
@@ -84,6 +84,22 @@ test('adsb.lol requests identify ARGUS with public contact URLs', async () => {
     await new AdsbLolProvider('39,-98,250').poll(Date.now());
     assert.match(userAgent, /ARGUS/);
     assert.match(userAgent, /github\.com\/Dioscurias\/Argus/);
+  } finally { globalThis.fetch = original; }
+});
+test('global adsb.lol requests grouped aircraft types and normalizes positioned aircraft', async () => {
+  const original = globalThis.fetch;
+  let requested = '';
+  globalThis.fetch = async (input) => {
+    requested = String(input);
+    return Response.json({ now, ac: [{ hex: 'abc123', lat: 48, lon: 9, alt_baro: 30000, gs: 450, track: 90, seen_pos: 1, t: 'A320' }] });
+  };
+  try {
+    const records = await new AdsbLolGlobalProvider().poll(now);
+    assert.match(requested, /\/v2\/type\//);
+    assert.match(requested, /A320/);
+    assert.equal(records.length, 1);
+    assert.equal(records[0].source, 'adsblol');
+    assert.equal('raw' in records[0].meta, false);
   } finally { globalThis.fetch = original; }
 });
 test('OpenSky falls back to quota-safe anonymous global states when OAuth transport fails', async () => {

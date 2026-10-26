@@ -44,12 +44,14 @@ export function normalizeOpenSky(payload: unknown, now: number): Entity[] {
     return normalize('opensky', { id: raw[0], lat: raw[6], lon: raw[5], heading: raw[10], speed: numeric(raw[9]) ? raw[9] * 1.943844 : null, altitude: numeric(raw[7]) ? raw[7] * 3.28084 : null, ts: raw[3], callsign: raw[1], onGround: raw[8] }, raw, now);
   }));
 }
-export function normalizeAdsb(payload: unknown, now: number): Entity[] {
+export function normalizeAdsb(payload: unknown, now: number, includeRaw = true): Entity[] {
   const data = record(payload);
   if (!Array.isArray(data.ac)) throw new Error('Invalid adsb.lol response');
   const observedAt = date(data.now) ?? now;
-  return compact(data.ac.map(raw => {
+  const entities = compact(data.ac.map(raw => {
     const r = record(raw);
     return normalize('adsblol', { id: r.hex, lat: r.lat, lon: r.lon, heading: r.track, speed: r.gs, altitude: r.alt_baro === 'ground' ? 0 : r.alt_baro, ts: numeric(r.seen_pos) ? observedAt - r.seen_pos * 1000 : null, callsign: r.flight, aircraft: r.t, onGround: r.alt_baro === 'ground' }, raw, now);
   }));
+  if (!includeRaw) for (const entity of entities) delete entity.meta.raw;
+  return entities;
 }

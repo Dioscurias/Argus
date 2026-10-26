@@ -43,14 +43,14 @@ try {
   if (liveData) await page.waitForFunction(() => Number(document.querySelector('[data-aircraft-count]')?.getAttribute('data-aircraft-count')) > 0);
   const initialAircraft = Number(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'));
   assert.ok(initialAircraft > 0);
-  assert.equal(await page.locator('[data-layer]').count(), 5);
+  assert.equal(await page.locator('[data-layer]').count(), 4);
   assert.ok((await page.locator('.rendered-count').innerText()).replace(/\s+/g, ' ').includes(`${initialAircraft.toLocaleString()} AIR DRAWN`));
   assert.equal(await page.getByRole('textbox').count(), 0);
   assert.equal(await page.getByText('REPLAY UNAVAILABLE').count(), 0);
   assert.equal(await page.locator('[data-layer="sea"], [data-layer="truck"], [data-layer="ports"], [data-layer="corridors"]').count(), 0);
   if (liveData) {
     await page.getByText('LIVE GLOBAL COVERAGE', { exact: true }).waitFor();
-    assert.ok((await page.locator('.status-feeds').innerText()).includes('OPENSKY'));
+    assert.match(await page.locator('.status-feeds').innerText(), /OPENSKY|ADSB\.LOL GLOBAL/);
   }
   await page.screenshot({ path: 'artifacts/argus-desktop.png', fullPage: true });
   assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), String(initialAircraft));
@@ -92,16 +92,10 @@ try {
   const handle = page.getByRole('button', { name: 'Reorder Air traffic; use up and down arrows', exact: true });
   await handle.focus();
   await page.keyboard.press('ArrowUp');
-  assert.equal(await page.locator('[data-layer]').nth(3).getAttribute('data-layer'), 'air');
+  assert.equal(await page.locator('[data-layer]').nth(2).getAttribute('data-layer'), 'air');
   await handle.dragTo(page.locator('[data-layer="graticule"]'));
   assert.equal(await page.locator('[data-layer]').nth(1).getAttribute('data-layer'), 'air');
   await page.getByRole('button', { name: 'Reset layers', exact: true }).click();
-
-  await page.getByRole('button', { name: 'Show Day / Night', exact: true }).click();
-  await page.waitForTimeout(250);
-  const nightMap = await page.locator('canvas.maplibregl-canvas').screenshot();
-  assert.notDeepEqual(nightMap, originalMap, 'Night mask must change map pixels');
-  await page.getByRole('button', { name: 'Hide Day / Night', exact: true }).click();
 
   await page.getByRole('button', { name: 'Globe projection', exact: true }).click();
   assert.equal(await page.locator('[data-projection]').getAttribute('data-projection'), 'globe');
@@ -128,7 +122,7 @@ try {
   assert.equal(await page.getByRole('complementary', { name: 'Map layers', exact: true }).isVisible(), false);
   assert.deepEqual(externalRequests, [], 'Runtime assets must be local');
   assert.deepEqual(errors, [], 'No browser exceptions or unexpected console errors');
-  console.log('PASS: observed HTTP feed, functional-only UI, desktop/mobile shell, WebGL map, visibility, opacity, solo, keyboard/drag reorder, night mask, globe/2D, zoom, and coordinates.');
+  console.log('PASS: observed HTTP feed, functional-only UI, desktop/mobile shell, WebGL map, visibility, opacity, solo, keyboard/drag reorder, globe/2D, zoom, and coordinates.');
   console.log('Screenshots: artifacts/argus-{desktop,globe,mobile}.png');
 } catch (error) {
   console.error('Browser errors:', errors);
