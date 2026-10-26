@@ -30,6 +30,7 @@ export class AirFeed {
         this.nextPoll = now + wait;
         return;
       } catch (error) {
+        console.warn('Air provider request failed', { provider: provider.id, status: error instanceof ProviderError ? error.status : undefined, message: error instanceof Error ? error.message : 'Unknown error' });
         if (error instanceof ProviderError) wait = Math.max(wait, error.retryAfterMs);
       }
     }
