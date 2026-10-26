@@ -19,6 +19,7 @@ export class AirFeed {
   private async update(now: number) {
     let wait = Math.max(this.interval, this.primary.minIntervalMs);
     let primaryStatus: number | undefined;
+    let primaryMessage = '';
     for (const [index, provider] of [this.primary, this.fallback].entries()) {
       if (!provider) continue;
       wait = Math.max(wait, provider.minIntervalMs);
@@ -27,12 +28,15 @@ export class AirFeed {
         this.source = provider.id;
         this.updatedAt = now;
         this.health = index === 0 ? 'healthy' : 'degraded';
-        this.message = index === 0 ? `Observed air traffic from ${provider.id}.` : `${this.primary.id} unavailable${primaryStatus ? ` (HTTP ${primaryStatus})` : ''}; using ${provider.id} fallback.`;
+        this.message = index === 0 ? `Observed air traffic from ${provider.id}.` : `${this.primary.id} unavailable${primaryStatus ? ` (HTTP ${primaryStatus})` : primaryMessage ? ` (${primaryMessage})` : ''}; using ${provider.id} fallback.`;
         this.nextPoll = now + wait;
         return;
       } catch (error) {
         console.warn('Air provider request failed', { provider: provider.id, status: error instanceof ProviderError ? error.status : undefined, message: error instanceof Error ? error.message : 'Unknown error' });
-        if (index === 0 && error instanceof ProviderError) primaryStatus = error.status;
+        if (index === 0) {
+          if (error instanceof ProviderError) primaryStatus = error.status;
+          else primaryMessage = error instanceof Error ? error.message.slice(0, 120) : 'unknown error';
+        }
         if (error instanceof ProviderError) wait = Math.max(wait, error.retryAfterMs);
       }
     }
