@@ -55,7 +55,7 @@ export function isSnapshot(value: unknown): value is Snapshot {
   const provenance = (item: unknown) => item === 'MODELED' || (record(value) && value.mode === 'mixed' && (item === 'LIVE' || item === 'DELAYED'));
   if (!record(value) || value.type !== 'snapshot' || value.version !== 1 || !['mock', 'mixed'].includes(String(value.mode))
     || !timestamp(value.generatedAt) || !count(value.sequence)
-    || !finite(value.intervalMs) || value.intervalMs < 500 || value.intervalMs > 60000
+    || !finite(value.intervalMs) || value.intervalMs < 500 || value.intervalMs > 3600000
     || !record(value.counts) || !Array.isArray(value.feeds) || value.feeds.length !== 3
     || !Array.isArray(value.entities)) return false;
   const counts = value.counts;

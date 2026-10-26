@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@blueprintjs/core';
-import { Map } from 'maplibre-gl';
+import { Map, type GeoJSONSource } from 'maplibre-gl';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import { Icon } from '../components/Icon';
 import { createMapStyle, mapLayerIds } from './style';
 import { addReferenceLabels } from './labels';
+import { makeNightMask } from './geography';
 import { isLayerVisible } from '../layers/state';
 import type { LayerStack } from '../layers/types';
 import type { Entity } from '../../shared/schema';
@@ -119,12 +120,14 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
       const fps = performance.now() - lastFrame < 250 && samples.length >= 3 ? Math.round(1000 / (samples.reduce((sum, sample) => sum + sample, 0) / samples.length)) : null;
       callbacks.current.onFps(fps);
     }, 1000);
+    const nightTimer = setInterval(() => (map.getSource('night') as GeoJSONSource | undefined)?.setData(makeNightMask(Date.now())), 60000);
     const observer = new ResizeObserver(() => map.resize());
     observer.observe(container.current);
     return () => {
       disposed = true;
       observer.disconnect();
       clearInterval(statsTimer);
+      clearInterval(nightTimer);
       map.remove();
       mapRef.current = null;
       deckRef.current = null;

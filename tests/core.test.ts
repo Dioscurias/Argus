@@ -92,6 +92,7 @@ test('stream validation rejects malformed feed fields, invalid dates, and incomp
     feeds: (['air', 'sea', 'truck'] as const).map(layer => ({ id: `mock-${layer}`, name: `Synthetic ${layer}`, layer, count: 1, updatedAt: now, health: 'healthy', provenance: 'MODELED', message: 'Synthetic' })),
   };
   assert.equal(isSnapshot(valid), true);
+  assert.equal(isSnapshot({ ...valid, intervalMs: 90000 }), true);
   assert.equal(isSnapshot({ ...valid, feeds: valid.feeds.map(feed => ({ layer: feed.layer, provenance: 'MODELED' })) }), false);
   assert.equal(isSnapshot({ ...valid, generatedAt: 9e15 }), false);
   assert.equal(isSnapshot({ ...valid, feeds: [null, null, null] }), false);
