@@ -35,7 +35,7 @@ export interface FeedStatus {
 export interface Snapshot {
   type: 'snapshot';
   version: 1;
-  mode: 'mock';
+  mode: 'mock' | 'mixed';
   sequence: number;
   generatedAt: number;
   intervalMs: number;
@@ -52,7 +52,8 @@ export function isSnapshot(value: unknown): value is Snapshot {
   const timestamp = (item: unknown): item is number => count(item) && item <= 8.64e15;
   const text = (item: unknown): item is string => typeof item === 'string' && item.length > 0;
   const layerName = (item: unknown): item is TransportLayer => item === 'air' || item === 'sea' || item === 'truck';
-  if (!record(value) || value.type !== 'snapshot' || value.version !== 1 || value.mode !== 'mock'
+  const provenance = (item: unknown) => item === 'MODELED' || (record(value) && value.mode === 'mixed' && (item === 'LIVE' || item === 'DELAYED'));
+  if (!record(value) || value.type !== 'snapshot' || value.version !== 1 || !['mock', 'mixed'].includes(String(value.mode))
     || !timestamp(value.generatedAt) || !count(value.sequence)
     || !finite(value.intervalMs) || value.intervalMs < 500 || value.intervalMs > 60000
     || !record(value.counts) || !Array.isArray(value.feeds) || value.feeds.length !== 3
@@ -64,7 +65,7 @@ export function isSnapshot(value: unknown): value is Snapshot {
     if (!record(feed) || !layerName(feed.layer) || seenLayers.has(feed.layer)
       || !text(feed.id) || !text(feed.name) || typeof feed.message !== 'string'
       || !['healthy', 'degraded', 'offline'].includes(String(feed.health))
-      || feed.provenance !== 'MODELED' || !timestamp(feed.updatedAt)
+      || !provenance(feed.provenance) || !timestamp(feed.updatedAt)
       || !count(feed.count) || feed.count !== counts[feed.layer]) return false;
     seenLayers.add(feed.layer);
   }
@@ -72,7 +73,7 @@ export function isSnapshot(value: unknown): value is Snapshot {
   const ids = new Set<string>();
   for (const entity of value.entities) {
     if (!record(entity) || !text(entity.id) || ids.has(entity.id) || !layerName(entity.layer)
-      || entity.provenance !== 'MODELED' || !timestamp(entity.ts)
+      || !provenance(entity.provenance) || !timestamp(entity.ts)
       || !finite(entity.lat) || Math.abs(entity.lat) > 90
       || !finite(entity.lon) || Math.abs(entity.lon) > 180
       || !finite(entity.heading) || entity.heading < 0 || entity.heading >= 360

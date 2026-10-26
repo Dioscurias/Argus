@@ -41,6 +41,13 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .health-dot.pending { background: transparent; border: 1px solid #526274; }
 .provenance { display: inline-flex; align-items: center; height: 15px; padding: 1px 4px; border: 1px solid #444031; border-radius: 2px; color: #B4A078; font: 8px var(--mono); line-height: 1; letter-spacing: 0.4px; }
 .provenance-reference { color: #7B8B9C; border-color: #2C3B4A; }
+.provenance-live { color: #8BC5A7; border-color: #355044; }
+.provenance-delayed { color: #FBB360; border-color: #60472E; }
+.map-tooltip { position: absolute; z-index: 4; pointer-events: none; width: 250px; display: flex; flex-direction: column; gap: 7px; padding: 12px; background: var(--panel); border: 1px solid #36495E; border-radius: 2px; font-size: 10px; color: var(--secondary); }
+.map-tooltip > div { display: flex; justify-content: space-between; align-items: center; color: var(--text); }
+.map-tooltip small { border-top: 1px solid var(--border); padding-top: 6px; font: 9px var(--mono); }
+.layer-filters .bp6-button { margin-top: 5px; font-size: 9px; color: var(--secondary); }
+.filter-row .bp6-html-select select:not(:disabled) { color: var(--text) !important; width: 115px; }
 
 .app-shell { display: grid; grid-template-rows: 62px 29px minmax(0, 1fr) 30px; height: 100dvh; min-height: 420px; }
 .command-bar { position: relative; z-index: 5; display: flex; align-items: center; gap: 22px; padding: 0 19px; background: var(--panel); border-bottom: 1px solid var(--border); }

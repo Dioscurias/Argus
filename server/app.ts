@@ -7,6 +7,11 @@ import type { Snapshot, TransportLayer } from '../shared/schema.js';
 import type { ServerConfig } from './config.js';
 import { TTLCache } from './cache.js';
 import { MockProvider } from './providers/mock.js';
+import { AirFeed } from './air-feed.js';
+import { Fr24Provider } from './providers/fr24.js';
+import { OpenSkyProvider } from './providers/opensky.js';
+import { AdsbLolProvider } from './providers/adsblol.js';
+import { ProviderError, type AirProvider } from './providers/air-provider.js';
 
 export function createArgusServer(config: ServerConfig) {
   const app = express();
@@ -15,6 +20,11 @@ export function createArgusServer(config: ServerConfig) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 4096, perMessageDeflate: false });
   // A fixed epoch keeps synthetic positions consistent across cold starts and instances.
   const provider = new MockProvider({ seed: config.seed, counts: config.counts, epoch: Date.UTC(2026, 0, 1) });
+  const makeAirProvider = (name: 'fr24' | 'opensky' | 'adsblol'): AirProvider => name === 'opensky' ? new OpenSkyProvider(config.air.bounds, config.air.clientId, config.air.clientSecret)
+    : name === 'adsblol' ? new AdsbLolProvider(config.air.point)
+    : config.air.fr24Key ? new Fr24Provider(config.air.fr24Key, config.air.bounds)
+    : { id: 'fr24', minIntervalMs: 60000, poll: async () => { throw new ProviderError(); } };
+  const airFeed = config.mockMode ? null : new AirFeed(makeAirProvider(config.air.provider), config.air.fallback === 'none' || config.air.fallback === config.air.provider ? null : makeAirProvider(config.air.fallback), config.air.intervalMs);
   const cache = new TTLCache<Snapshot>(config.cacheTtlMs);
   let sequence = 0;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
@@ -31,6 +41,7 @@ export function createArgusServer(config: ServerConfig) {
   function startStreaming() {
     if (pollTimer) return;
     pollTimer = setInterval(() => {
+      if (airFeed) void airFeed.refresh(Date.now()).then(() => cache.clear());
       cache.clear();
       const payload = JSON.stringify(snapshot());
       for (const socket of wss.clients) {
@@ -50,13 +61,14 @@ export function createArgusServer(config: ServerConfig) {
     const cached = cache.get();
     if (cached) return cached;
     const now = Date.now();
-    const entities = provider.poll(now);
+    const generated = provider.poll(now);
+    const entities = airFeed ? [...generated.filter(entity => entity.layer !== 'air'), ...airFeed.entities(now)] : generated;
     const counts = { air: 0, sea: 0, truck: 0 };
     for (const entity of entities) counts[entity.layer]++;
     const frame: Snapshot = {
-      type: 'snapshot', version: 1, mode: 'mock', sequence: ++sequence,
+      type: 'snapshot', version: 1, mode: config.mockMode ? 'mock' : 'mixed', sequence: ++sequence,
       generatedAt: now, intervalMs: config.pollIntervalMs, counts, entities,
-      feeds: (['air', 'sea', 'truck'] as TransportLayer[]).map(layer => ({
+      feeds: (['air', 'sea', 'truck'] as TransportLayer[]).map(layer => layer === 'air' && airFeed ? airFeed.status(now) : ({
         id: `mock-${layer}`, layer, name: `Synthetic ${layer === 'truck' ? 'freight' : layer}`,
         health: 'healthy', provenance: 'MODELED', count: counts[layer], updatedAt: now,
         message: 'Synthetic development data. Not observed traffic.',
@@ -67,8 +79,8 @@ export function createArgusServer(config: ServerConfig) {
   }
 
   app.use('/api', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
-  app.get('/api/health', (_req, res) => res.json({ status: 'ok', phase: 0, mode: 'mock', feeds: snapshot().feeds }));
-  app.get('/api/snapshot', (_req, res) => res.json(snapshot()));
+  app.get('/api/health', (_req, res) => res.json({ status: 'ok', phase: 1, mode: config.mockMode ? 'mock' : 'mixed', feeds: snapshot().feeds }));
+  app.get('/api/snapshot', async (_req, res) => { if (airFeed) { await airFeed.refresh(Date.now()); cache.clear(); } res.json(snapshot()); });
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Unknown API endpoint' }));
   const dist = resolve(process.cwd(), 'dist');
   if (existsSync(resolve(dist, 'index.html'))) {
@@ -95,6 +107,7 @@ export function createArgusServer(config: ServerConfig) {
     socket.on('pong', () => alive.add(socket));
     socket.on('error', () => socket.terminate());
     socket.send(JSON.stringify(snapshot()));
+    if (airFeed) void airFeed.refresh(Date.now()).then(() => cache.clear());
     startStreaming();
     socket.on('close', () => { if (wss.clients.size === 0) stopStreaming(); });
   });
@@ -109,6 +122,7 @@ export function createArgusServer(config: ServerConfig) {
     },
     async close() {
       stopStreaming();
+      airFeed?.dispose();
       for (const socket of wss.clients) socket.terminate();
       await new Promise<void>(resolveClose => wss.close(() => resolveClose()));
       await new Promise<void>((resolveClose, reject) => server.close(error => error ? reject(error) : resolveClose()));

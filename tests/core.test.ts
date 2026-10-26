@@ -101,11 +101,13 @@ test('stream validation rejects malformed feed fields, invalid dates, and incomp
   assert.equal(isSnapshot({ ...valid, entities: [] }), false);
 });
 
-test('configuration defaults to mock and rejects invalid or unavailable live mode', () => {
+test('configuration defaults to mock and validates live provider settings', () => {
   const config = readConfig({});
   assert.equal(config.mockMode, true);
   assert.equal(config.port, 3001);
-  assert.throws(() => readConfig({ MOCK_DATA_MODE: 'false' }), /Phase 0/);
+  assert.equal(readConfig({ MOCK_DATA_MODE: 'false' }).mockMode, false);
+  assert.throws(() => readConfig({ MOCK_DATA_MODE: 'false', VERCEL: '1' }), /shared provider cache/);
+  assert.throws(() => readConfig({ AIR_BOUNDS: '100,0,0,10' }), /AIR_BOUNDS/);
   assert.throws(() => readConfig({ MOCK_DATA_MODE: 'oops' }), /MOCK_DATA_MODE/);
   assert.throws(() => readConfig({ PORT: 'oops' }), /PORT/);
   assert.throws(() => readConfig({ MOCK_AIR_COUNT: '-1' }), /MOCK_AIR_COUNT/);

@@ -17,10 +17,12 @@ page.on('console', message => { if (message.type() === 'error' && !message.text(
 page.on('request', request => { if (!request.url().startsWith(base) && !request.url().startsWith('data:') && !request.url().startsWith('blob:')) externalRequests.push(request.url()); });
 
 let blockSockets = false;
+let suppressFrames = false;
 const sockets = [];
 await page.routeWebSocket('**/ws', route => {
   if (blockSockets) { route.close(); return; }
   const server = route.connectToServer();
+  server.onMessage(message => { if (!suppressFrames) route.send(message); });
   sockets.push({ route, server });
 });
 
@@ -29,10 +31,22 @@ try {
   await page.waitForSelector('[data-map-ready="true"]', { timeout: 30000 });
   await page.getByText('Receiving every 2s', { exact: true }).waitFor();
   assert.equal(await page.locator('[data-layer]').count(), 9);
-  assert.ok((await page.locator('.rendered-count').innerText()).replace(/\s+/g, ' ').includes('0 RENDERED'));
+  assert.ok((await page.locator('.rendered-count').innerText()).replace(/\s+/g, ' ').includes('640 AIR DRAWN'));
   assert.ok((await page.locator('.rendered-count').innerText()).includes('1,240'));
   assert.equal(await page.getByRole('textbox', { name: 'Global search available in Phase 4' }).isDisabled(), true);
   await page.screenshot({ path: 'artifacts/argus-desktop.png', fullPage: true });
+  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '640');
+  await page.getByRole('combobox', { name: 'Air traffic Aircraft type', exact: true }).selectOption('A320');
+  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '160');
+  await page.getByRole('combobox', { name: 'Air traffic Altitude band', exact: true }).selectOption('low');
+  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '0');
+  await page.getByRole('button', { name: 'Clear air filters', exact: true }).click();
+  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '640');
+  await page.getByRole('button', { name: 'Hide Air traffic', exact: true }).click();
+  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '0');
+  await page.getByRole('button', { name: 'Show Air traffic', exact: true }).click();
+  await page.getByRole('button', { name: 'Hide Airports', exact: true }).click();
+  await page.getByRole('button', { name: 'Show Airports', exact: true }).click();
   const originalMap = await page.locator('canvas.maplibregl-canvas').screenshot();
 
   await page.getByRole('button', { name: 'Hide Graticule', exact: true }).click();
@@ -82,9 +96,11 @@ try {
   await page.mouse.move(800, 350);
   assert.ok((await page.locator('.cursor-coordinates').innerText()).includes('°'));
 
+  suppressFrames = true;
   sockets.at(-1).route.send(JSON.stringify({ type: 'snapshot', version: 1, mode: 'mock', feeds: [{ provenance: 'MODELED' }] }));
   await page.getByText('Updates delayed · retaining buffer', { exact: true }).waitFor();
   assert.ok((await page.locator('.rendered-count').innerText()).includes('1,240'), 'Malformed frames must preserve the last valid buffer');
+  suppressFrames = false;
   await page.getByText('Receiving every 2s', { exact: true }).waitFor();
 
   blockSockets = true;
@@ -108,6 +124,10 @@ try {
   assert.deepEqual(errors, [], 'No browser exceptions or unexpected console errors');
   console.log('PASS: desktop/mobile shell, local assets, WebGL map, visibility, opacity, solo, keyboard/drag reorder, night mask, globe/2D, zoom, coordinates, disconnect/reconnect.');
   console.log('Screenshots: artifacts/argus-{desktop,globe,mobile}.png');
+} catch (error) {
+  console.error('Browser errors:', errors);
+  await page.screenshot({ path: 'artifacts/argus-failure.png', fullPage: true }).catch(() => {});
+  throw error;
 } finally {
   await browser.close();
 }

@@ -1,4 +1,5 @@
 import type { TransportLayer } from '../../shared/schema';
+import type { AirFilters } from './air-filters';
 
 export type LayerId = 'basemap' | 'graticule' | 'terminator' | 'airports' | 'air' | 'ports' | 'sea' | 'corridors' | 'truck';
 export interface LayerDefinition {
@@ -14,4 +15,4 @@ export interface LayerDefinition {
   filters?: readonly string[];
 }
 export interface LayerState extends LayerDefinition { visible: boolean; opacity: number }
-export interface LayerStack { layers: LayerState[]; soloId: LayerId | null }
+export interface LayerStack { layers: LayerState[]; soloId: LayerId | null; airFilters?: AirFilters }

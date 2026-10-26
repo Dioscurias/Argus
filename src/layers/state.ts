@@ -8,6 +8,7 @@ import { seaLayer } from './SeaLayer';
 import { freightCorridorsLayer } from './FreightCorridorsLayer';
 import { truckLayer } from './TruckLayer';
 import type { LayerId, LayerStack, LayerState } from './types';
+import { defaultAirFilters, type AirFilters } from './air-filters';
 
 const definitions = [basemapLayer, graticuleLayer, terminatorLayer, airportsLayer, airLayer, portsLayer, seaLayer, freightCorridorsLayer, truckLayer];
 export const initialLayers = (): LayerState[] => definitions.map(layer => ({ ...layer, visible: layer.defaultVisible, opacity: layer.id === 'graticule' ? 0.35 : layer.id === 'terminator' ? 0.45 : 1 }));
@@ -16,6 +17,7 @@ export type LayerAction =
   | { type: 'solo'; id: LayerId }
   | { type: 'opacity'; id: LayerId; value: number }
   | { type: 'move'; id: LayerId; targetId: LayerId }
+  | { type: 'air-filter'; key: keyof AirFilters; value: string }
   | { type: 'reset' };
 
 export function isLayerVisible(stack: LayerStack, id: LayerId): boolean {
@@ -26,6 +28,7 @@ export function isLayerVisible(stack: LayerStack, id: LayerId): boolean {
 }
 
 export function layerReducer(state: LayerStack, action: LayerAction): LayerStack {
+  if (action.type === 'air-filter') return { ...state, airFilters: { ...defaultAirFilters, ...state.airFilters, [action.key]: action.value } };
   if (action.type === 'reset') return { layers: initialLayers(), soloId: null };
   if (action.type === 'solo') return { ...state, soloId: state.soloId === action.id ? null : action.id };
   if (action.type === 'move') {

@@ -71,7 +71,7 @@ export class MockProvider implements EntityProvider {
             subtype: subtypes[index % subtypes.length],
             origin: route.origin, destination: route.destination,
             source: `mock-${layer}`, ts: options.epoch, provenance: 'MODELED',
-            meta: { synthetic: true, seed: options.seed, speedUnit: 'knots', altitudeUnit: 'feet', routeModel: 'synthetic piecewise-linear loop' },
+            meta: { synthetic: true, seed: options.seed, speedUnit: 'knots', altitudeUnit: 'feet', routeModel: 'synthetic piecewise-linear loop', ...(layer === 'air' ? { airline: ['SIM-ALPHA', 'SIM-BRAVO', 'SIM-CHARLIE'][index % 3], lateralOffset: (random() - 0.5) * 2.5 } : {}) },
           },
         });
       }
@@ -88,7 +88,7 @@ export class MockProvider implements EntityProvider {
       const b = route.points[index + 1];
       const delta = longitudeDelta(a[0], b[0]);
       const lon = ((a[0] + delta * fraction + 540) % 360) - 180;
-      const lat = a[1] + (b[1] - a[1]) * fraction;
+      const lat = a[1] + (b[1] - a[1]) * fraction + (entity.layer === 'air' ? Number(entity.meta.lateralOffset) * Math.sin(fraction * Math.PI) : 0);
       const heading = (Math.atan2(delta * Math.cos(lat * Math.PI / 180), b[1] - a[1]) * 180 / Math.PI + 360) % 360;
       return { ...entity, lat, lon, heading, ts: now };
     });

@@ -1,6 +1,6 @@
 # ARGUS
 
-Layered global traffic intelligence. **Phase 0: foundation.**
+Layered global traffic intelligence. **Phase 1: air traffic and airports.**
 
 A runnable Vite + React + TypeScript application with Blueprint's dark UI, MapLibre GL, a deck.gl overlay, and a Node/Express/WebSocket backend. All movement in this phase is **synthetic and labeled MODELED**. No API keys are required.
 
@@ -34,17 +34,19 @@ Vercel WebSocket connections end at the function's configured maximum duration (
 
 Reference: [Vercel WebSockets](https://vercel.com/docs/functions/websockets).
 
-## What Phase 0 includes
+## What Phase 1 includes
 
 - The specified dark palette, Inter UI type, JetBrains Mono data type, Blueprint controls, command bar, layer stack, inspector shell, timeline shell, and status bar.
-- A pan/zoom reference map with 2D Mercator and globe projections, north reset, and world-view reset. Natural Earth country geometry and all fonts are bundled locally: there are no runtime tile, glyph, or font service calls.
+- A pan/zoom reference map with 2D Mercator and globe projections, north reset, and world-view reset. Natural Earth country geometry, OurAirports large/medium airport points, and all fonts are bundled locally.
+- Aircraft icons rendered with deck.gl in both projections, hover details with provenance/source, and working altitude, airline, and aircraft-type filters. Mock mode draws 640 synthetic aircraft immediately.
+- Separate server-side adapters for the official Flightradar24 SDK, OpenSky OAuth/anonymous REST, and adsb.lol point API. Observations are normalized to knots/feet/WGS84, old or retained positions are labeled DELAYED, and failures retain the reference map.
 - Nine modular layer definitions. Toggle visibility, set opacity, solo a layer, drag it to reorder, or focus its drag handle and use the up/down keys. Solo keeps the enabled basemap as geographic context and restores the previous visibility state when cleared. Explicit visibility changes exit solo. Reset restores the default layer stack. MapLibre layer draw order follows the stack from top to bottom; later layers draw above earlier layers.
 - Working basemap, 15° graticule, and approximate day/night mask. Static geography uses a REF badge; computed/synthetic layers use MODELED. The terminator refreshes every 60 seconds and is a visual approximation, not a navigation ephemeris.
 - Deterministic mock generation: by default, 640 aircraft, 420 vessels, and 180 trucks move along synthetic routes. Positions update every two seconds, normalize to one typed schema, and stream over WebSocket.
 - Short-TTL server caching, reconnect with bounded backoff, stale/offline feed states, WebSocket heartbeat and backpressure handling, and same-origin browser connection checks. The client retains the last buffer when disconnected; the local reference map stays available.
 - Responsive panels: at narrower sizes, use the layer/inspector buttons in the command bar.
 
-**The transport map is intentionally empty in Phase 0.** The client receives mock entities and shows their buffered counts, but transport markers do not render yet. `0 RENDERED / 1,240 BUFFERED` is intentional. The deck.gl overlay is initialized with an empty layer array. Enabling future layers stores their settings; it does not add markers. Transport opacity controls likewise store values for later renderers.
+Sea and truck records remain buffered rather than rendered until Phases 2–3. Search and the full click inspector remain Phase 4.
 
 Green feed dots mean the **local synthetic stream** is healthy, never that a live provider is connected. Pending reference sources have hollow dots. On disconnect, counts and timestamps refer to the retained buffer. FPS is measured from actual map frames and displays `RENDER IDLE` when the map is not drawing; it is not a simulated performance counter.
 
@@ -53,13 +55,13 @@ Green feed dots mean the **local synthetic stream** is healthy, never that a liv
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Scaffold, design system, shell, empty map, layer controls, mock stream | Implemented |
-| 1 | Air rendering, airports, official FR24 provider, OpenSky/adsb.lol fallback | Next |
+| 1 | Air rendering, airports, official FR24 provider, OpenSky/adsb.lol fallback | Implemented |
 | 2 | Sea rendering, AISstream provider, ports, shipping lanes | Pending |
 | 3 | Modeled freight corridors and truck flows; U.S. then global | Pending |
 | 4 | Search, entity inspector, regions, saved views, timeline replay | Pending |
 | 5 | High-volume rendering optimizations, full error-state pass, provider/license documentation | Pending |
 
-Upcoming controls are visibly disabled and carry their phase number. Phase 0 does not implement search, selection, track history, region filters, saved views, replay, H3 bins, live providers, or provider-specific filters. `MOCK_DATA_MODE=false` fails with an explicit startup message rather than implying a live connection. No 70,000-entity or 60 FPS performance claim is made yet.
+Upcoming controls are visibly disabled and carry their phase number. Phase 1 does not implement search, selection, track history, region filters, saved views, replay, or H3 bins. No 70,000-entity or 60 FPS performance claim is made yet.
 
 Truck records are synthetic development fixtures, **not** FHWA/FAF5 estimates and not observations. No public live global truck feed exists. `TruckProvider` is an extension point for a later telematics/HERE/TomTom integration.
 

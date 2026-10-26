@@ -11,3 +11,5 @@ License: public domain. https://www.naturalearthdata.com/about/terms-of-use/
 The 177 feature geometries are retained. Properties are reduced to `name` (upstream `NAME_EN`) and `iso` (upstream `ADM0_A3`) to keep the client payload small. This is a low-resolution global reference map, not street data or navigation-grade geography. Boundaries do not imply a position on sovereignty.
 
 All Phase 0 traffic records are generated separately and are not part of Natural Earth.
+
+`airports.geojson` contains 5,280 large and medium airport records from the OurAirports public-domain `airports.csv` downloaded on 2026-10-25. It retains name, ident, IATA code, type, country, and WGS84 point geometry. Source: https://ourairports.com/data/
