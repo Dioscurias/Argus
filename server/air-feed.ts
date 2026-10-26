@@ -25,6 +25,7 @@ export class AirFeed {
       wait = Math.max(wait, provider.minIntervalMs);
       try {
         this.records = await provider.poll(now);
+        wait = Math.max(wait, provider.minIntervalMs);
         this.source = provider.id;
         this.updatedAt = now;
         this.health = index === 0 ? 'healthy' : 'degraded';
@@ -52,5 +53,6 @@ export class AirFeed {
     const delayed = this.health === 'offline' || !entities.length || entities.some(entity => entity.provenance === 'DELAYED');
     return { id: this.source, layer: 'air', name: this.source, health: this.health, count: entities.length, updatedAt: this.updatedAt || now, provenance: delayed ? 'DELAYED' : entities.every(entity => entity.provenance === 'MODELED') ? 'MODELED' : 'LIVE', message: this.message };
   }
+  pollIntervalMs() { return Math.max(this.interval, this.primary.minIntervalMs); }
   dispose() { this.primary.dispose?.(); this.fallback?.dispose?.(); }
 }

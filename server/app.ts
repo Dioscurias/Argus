@@ -111,7 +111,7 @@ export function createArgusServer(config: ServerConfig) {
     const entities = feed.entities(now);
     return {
       type: 'snapshot', version: 1, mode: 'mixed', sequence: ++sequence, generatedAt: now,
-      intervalMs: config.air.intervalMs, counts: { air: entities.length, sea: 0, truck: 0 }, entities,
+      intervalMs: feed.pollIntervalMs(), counts: { air: entities.length, sea: 0, truck: 0 }, entities,
       feeds: [feed.status(now), unavailableFeed('sea', now), unavailableFeed('truck', now)],
     };
   }
