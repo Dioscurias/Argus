@@ -1,3 +1,6 @@
+// The published 0.1.1 SDK package does not expose TypeScript declarations to
+// Vercel's function compiler. Keep the boundary typed explicitly below.
+// @ts-expect-error -- upstream package has no exported declarations
 import SDK from '@flightradar24/fr24sdk';
 import { normalizeFr24 } from './normalize-air.js';
 import { getJson, ProviderError, type AirProvider } from './air-provider.js';
@@ -10,7 +13,7 @@ export class Fr24Provider implements AirProvider {
   constructor(apiKey: string, private readonly bounds: string) {
     this.client = new SDK.Client({ apiToken: apiKey, timeout: 12000, httpClient: {
       // SDK 0.1.1 drops response headers when rethrowing. Preserve Retry-After here.
-      request: async ({ url, params }) => {
+      request: async ({ url, params }: { url: string; params?: Record<string, unknown> }) => {
         const query = new URLSearchParams(Object.entries(params ?? {}).filter(([, value]) => value !== undefined).map(([key, value]): [string, string] => [key, String(value)]));
         try { return { data: await getJson(`https://fr24api.flightradar24.com${url}?${query}`, { headers: { Authorization: `Bearer ${apiKey}`, 'Accept-version': 'v1' } }) }; }
         catch (error) { if (error instanceof ProviderError) this.failure = error; throw error; }
