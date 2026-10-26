@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@blueprintjs/core';
 import { Map, type GeoJSONSource } from 'maplibre-gl';
-import { MapboxOverlay } from '@deck.gl/mapbox';
 import { Icon } from '../components/Icon';
 import { createMapStyle, mapLayerIds } from './style';
 import { addReferenceLabels } from './labels';
@@ -9,7 +8,9 @@ import { makeNightMask } from './geography';
 import { isLayerVisible } from '../layers/state';
 import type { LayerStack } from '../layers/types';
 import type { Entity } from '../../shared/schema';
-import { createAircraftLayer } from '../layers/AirLayer';
+import { addAircraftLayers, updateAircraft, updateFlightPath } from './aircraft-renderer';
+import type { TrackPoint } from './flight-path';
+import type { RouteAirport } from '../../shared/aircraft-details';
 import { airportOpacity } from '../layers/AirportsLayer';
 import { Badge } from '../components/Badge';
 import { formatCount, utcTime } from '../hooks/useClock';
@@ -23,13 +24,18 @@ interface Props {
   onFps: (fps: number | null) => void;
   onRegion: (region: { lat: number; lon: number }) => void;
   globalCoverage: boolean;
+  selected: Entity | null;
+  onSelect: (entity: Entity | null) => void;
+  track: TrackPoint[];
+  route: RouteAirport[];
 }
 
-function overviewZoom(map: Map, projection: Projection) {
+function overviewZoom(map: Map, projection: Projection, latitude = map.getCenter().lat) {
   if (projection === 'mercator') return 1.05;
   const container = map.getContainer();
   const diameter = Math.min(container.clientWidth, container.clientHeight) * 0.78;
-  return Math.max(0, Math.log2(diameter * Math.PI / 512));
+  // MapLibre scales globe size with Mercator latitude; compensate when recentering.
+  return Math.max(-2, Math.log2(diameter * Math.PI * Math.cos(Math.min(85, Math.abs(latitude)) * Math.PI / 180) / 512));
 }
 
 function applyStack(map: Map, stack: LayerStack) {
@@ -42,7 +48,7 @@ function applyStack(map: Map, stack: LayerStack) {
       if (type === 'fill') map.setPaintProperty(id, 'fill-opacity', layer.opacity);
       if (type === 'symbol') map.setPaintProperty(id, 'icon-opacity', layer.opacity);
       if (type === 'circle') {
-        map.setPaintProperty(id, 'circle-opacity', airportOpacity(layer.opacity));
+        map.setPaintProperty(id, 'circle-opacity', id === 'selected-halo' ? layer.opacity * 0.12 : id === 'airport-points' ? airportOpacity(layer.opacity) : layer.opacity);
         map.setPaintProperty(id, 'circle-stroke-opacity', layer.opacity);
       }
       map.moveLayer(id);
@@ -50,16 +56,18 @@ function applyStack(map: Map, stack: LayerStack) {
   }
 }
 
-export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRegion, globalCoverage }: Props) {
+export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRegion, globalCoverage, selected, onSelect, track, route }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
-  const deckRef = useRef<MapboxOverlay | null>(null);
+  const aircraftRef = useRef(aircraft);
+  aircraftRef.current = aircraft;
   const stackRef = useRef(stack);
   const projectionRef = useRef(projection);
-  const callbacks = useRef({ onCursor, onFps, onRegion });
+  const appliedProjection = useRef(projection);
+  const callbacks = useRef({ onCursor, onFps, onRegion, onSelect });
   stackRef.current = stack;
   projectionRef.current = projection;
-  callbacks.current = { onCursor, onFps, onRegion };
+  callbacks.current = { onCursor, onFps, onRegion, onSelect };
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -77,7 +85,7 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
     try {
       map = new Map({
         container: container.current,
-        style: createMapStyle(), center: [-98, 39], zoom: 3, minZoom: 0, maxZoom: 9,
+        style: createMapStyle(), center: [-98, 39], zoom: 3, minZoom: -2, maxZoom: 9,
         attributionControl: false, renderWorldCopies: false, canvasContextAttributes: { antialias: true },
       });
     } catch {
@@ -85,24 +93,34 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
       return;
     }
     mapRef.current = map;
-    const deck = new MapboxOverlay({ interleaved: true, layers: [], onError: error => { console.error(error); setError('The aircraft renderer could not initialize. Retry to restore the map.'); } });
-    deckRef.current = deck;
     let lastFrame = 0;
     const samples: number[] = [];
     map.on('load', async () => {
       await document.fonts.ready;
       if (disposed) return;
       map.setProjection({ type: projectionRef.current });
-      map.jumpTo({ zoom: 3 });
+      map.jumpTo({ zoom: projectionRef.current === 'globe' ? overviewZoom(map, 'globe') : 3 });
+      appliedProjection.current = projectionRef.current;
       addReferenceLabels(map);
-      map.addControl(deck);
+      addAircraftLayers(map);
       applyStack(map, stackRef.current);
       setLoaded(true);
     });
     map.on('mousemove', event => {
       callbacks.current.onCursor([event.lngLat.lng, event.lngLat.lat]);
+      const plane = map.getLayer('aircraft') && (stackRef.current.layers.find(layer => layer.id === 'air')?.opacity ?? 0) > 0 ? map.queryRenderedFeatures(event.point, { layers: ['aircraft'] })[0] : undefined;
+      const entity = plane && aircraftRef.current.find(entity => entity.id === plane.properties.id);
+      setHover(entity ? { entity, x: event.point.x, y: event.point.y } : null);
+      map.getCanvas().style.cursor = entity ? 'pointer' : '';
       const airport = map.getLayer('airport-points') ? map.queryRenderedFeatures(event.point, { layers: ['airport-points'] })[0] : undefined;
       setAirportHover(airport ? { name: String(airport.properties.name), code: String(airport.properties.iata || airport.properties.id), x: event.point.x, y: event.point.y } : null);
+    });
+    map.on('click', event => {
+      if (!map.getLayer('aircraft') || (stackRef.current.layers.find(layer => layer.id === 'air')?.opacity ?? 0) <= 0) return;
+      const plane = map.queryRenderedFeatures(event.point, { layers: ['aircraft'] })[0]
+        ?? map.queryRenderedFeatures([[event.point.x - 7, event.point.y - 7], [event.point.x + 7, event.point.y + 7]], { layers: ['aircraft'] })[0];
+      const entity = plane && aircraftRef.current.find(entity => entity.id === plane.properties.id);
+      if (entity) { setHover(null); callbacks.current.onSelect(entity); }
     });
     map.on('mouseout', () => { setHover(null); setAirportHover(null); });
     map.on('move', () => { setZoom(map.getZoom()); setBearing(map.getBearing()); });
@@ -121,7 +139,10 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
       callbacks.current.onFps(fps);
     }, 1000);
     const nightTimer = setInterval(() => (map.getSource('night') as GeoJSONSource | undefined)?.setData(makeNightMask(Date.now())), 60000);
-    const observer = new ResizeObserver(() => map.resize());
+    const observer = new ResizeObserver(() => {
+      map.resize();
+      if (projectionRef.current === 'globe' && map.getZoom() < 3) map.jumpTo({ zoom: overviewZoom(map, 'globe') });
+    });
     observer.observe(container.current);
     return () => {
       disposed = true;
@@ -130,40 +151,61 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
       clearInterval(nightTimer);
       map.remove();
       mapRef.current = null;
-      deckRef.current = null;
     };
   }, [attempt]);
 
   useEffect(() => { if (loaded && mapRef.current) applyStack(mapRef.current, stack); }, [stack, loaded]);
   useEffect(() => {
-    if (!loaded || !deckRef.current) return;
-    const air = stack.layers.find(layer => layer.id === 'air');
-    deckRef.current.setProps({ layers: [createAircraftLayer(aircraft, isLayerVisible(stack, 'air'), air?.opacity ?? 1, info => setHover(info.object ? { entity: info.object, x: info.x, y: info.y } : null))] });
+    if (!loaded || !mapRef.current) return;
+    updateAircraft(mapRef.current, aircraft, selected?.id ?? null);
     setHover(previous => {
       if (!previous || !isLayerVisible(stack, 'air')) return null;
       const updated = aircraft.find(entity => entity.id === previous.entity.id);
       return updated ? { ...previous, entity: updated } : null;
     });
-  }, [loaded, stack, aircraft]);
+  }, [loaded, stack, aircraft, selected?.id]);
   useEffect(() => {
-    if (loaded && mapRef.current) {
+    if (loaded && mapRef.current) updateFlightPath(mapRef.current, track, route);
+  }, [loaded, track, route]);
+  useEffect(() => {
+    if (loaded && selected && mapRef.current) mapRef.current.easeTo({ center: [selected.lon, selected.lat], zoom: projectionRef.current === 'globe' ? overviewZoom(mapRef.current, 'globe', selected.lat) : 3, duration: 0 });
+  }, [loaded, selected?.id]);
+  const fitFlight = () => {
+    const map = mapRef.current;
+    if (!map || !selected) return;
+    const points = [...route, ...track, selected].map(point => [selected.lon + ((point.lon - selected.lon + 540) % 360 - 180), point.lat]);
+    const west = Math.min(...points.map(point => point[0])), east = Math.max(...points.map(point => point[0]));
+    const south = Math.min(...points.map(point => point[1])), north = Math.max(...points.map(point => point[1]));
+    if (projection === 'globe') map.jumpTo({ center: [(west + east) / 2, (south + north) / 2], zoom: overviewZoom(map, 'globe', (south + north) / 2) });
+    else map.fitBounds([[west, south], [east, north]], { padding: { top: 170, bottom: 115, left: 55, right: 55 }, maxZoom: 4, duration: 0 });
+  };
+  useEffect(() => { if (loaded && route.length) fitFlight(); }, [loaded, route, selected?.id]);
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') callbacks.current.onSelect(null); };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, []);
+  useEffect(() => {
+    if (loaded && mapRef.current && appliedProjection.current !== projection) {
       const map = mapRef.current;
+      appliedProjection.current = projection;
       map.setProjection({ type: projection });
-      if (map.getZoom() < 3) map.jumpTo({ zoom: overviewZoom(map, projection) });
+      map.jumpTo({ zoom: projection === 'globe' || globalCoverage ? overviewZoom(map, projection) : 3, pitch: 0 });
     }
   }, [projection, loaded]);
   useEffect(() => {
-    if (loaded && globalCoverage && mapRef.current) mapRef.current.jumpTo({ center: [0, 22], zoom: overviewZoom(mapRef.current, projection) });
+    if (loaded && globalCoverage && mapRef.current) mapRef.current.jumpTo({ center: [0, 22], zoom: overviewZoom(mapRef.current, projection, 22) });
   }, [globalCoverage, loaded]);
 
   const reset = () => {
     const map = mapRef.current;
-    map?.flyTo({ center: globalCoverage ? [0, 22] : [-98, 39], zoom: globalCoverage ? overviewZoom(map, projection) : 3, bearing: 0, pitch: 0, duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600 });
+    map?.flyTo({ center: globalCoverage ? [0, 22] : [-98, 39], zoom: globalCoverage || projection === 'globe' ? overviewZoom(map, projection, globalCoverage ? 22 : 39) : 3, bearing: 0, pitch: 0, duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600 });
   };
-  return <section className="map-viewport" aria-label="Global reference map" data-projection={projection} data-map-ready={loaded} data-aircraft-count={isLayerVisible(stack, 'air') ? aircraft.length : 0}>
+  return <section className="map-viewport" aria-label="Global reference map" data-projection={projection} data-map-ready={loaded} data-aircraft-count={isLayerVisible(stack, 'air') ? aircraft.length : 0} data-selected-aircraft={selected?.id ?? ''}>
     <div className="map-canvas" ref={container}/>
     <div className="map-context"><span className="eyebrow">LIVE OPERATING PICTURE</span><div>{globalCoverage ? 'Global coverage' : 'Regional coverage'} <span>/</span> <span className="muted">{projection === 'globe' ? 'Globe' : 'Mercator'}</span></div></div>
     <div className="map-top-right"><span className="map-reference-tag"><span className="health-dot healthy"/> LOCAL BASEMAP</span></div>
+    {selected && <div className="selection-controls"><span className="mono">{selected.label} · ISOLATED</span><Button small onClick={() => onSelect(null)}>Show all aircraft</Button><Button small minimal onClick={fitFlight}>Fit flight path</Button><div><span className="trail-key"/> Observed trail <span className="route-key"/> Reference route</div></div>}
     <div className="map-toolrail" aria-label="Map tools"><Button minimal title="Pan map" aria-label="Pan map" active><Icon name="cursor"/></Button></div>
     <div className="map-navigation"><Button minimal aria-label="Reset north" title="Reset north" className="north-button" onClick={() => mapRef.current?.resetNorth()}><span>N</span><svg width="16" height="18" viewBox="0 0 16 18" style={{ transform: `rotate(${-bearing}deg)` }} aria-hidden="true"><path d="m8 1 6 15-6-4-6 4Z" fill="none" stroke="currentColor"/></svg></Button><div className="zoom-buttons"><Button minimal aria-label="Zoom in" title="Zoom in" onClick={() => mapRef.current?.zoomIn()}><Icon name="plus"/></Button><Button minimal aria-label="Zoom out" title="Zoom out" onClick={() => mapRef.current?.zoomOut()}><Icon name="minus"/></Button></div><Button minimal aria-label="Reset map view" title="Reset world overview" onClick={reset}><Icon name="globe"/></Button></div>
     <div className="map-bottom-left"><span className="coordinate-tick"/><span className="mono">WGS84</span><span className="map-coordinate-divider">/</span><span className="mono">ZOOM {zoom.toFixed(2)}</span></div>

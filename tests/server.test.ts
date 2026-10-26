@@ -51,6 +51,8 @@ test('HTTP and WebSocket expose modeled snapshots without secrets and reject oth
     const health = await (await fetch(base + '/api/health')).json();
     assert.equal(health.mode, 'mock');
     assert.equal((await fetch(base + '/api/missing')).status, 404);
+    assert.equal((await fetch(base + '/api/aircraft/not-a-hex')).status, 400);
+    assert.equal((await fetch(base + '/api/aircraft/4010ee?callsign=INVALID%2FURL')).status, 400);
     const rejected = new WebSocket(base.replace('http', 'ws') + '/ws', { origin: 'https://untrusted.example' });
     const [error] = await once(rejected, 'error');
     assert.match(error.message, /403/);

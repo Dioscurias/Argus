@@ -19,7 +19,6 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             maplibre: ['maplibre-gl'],
-            deck: ['@deck.gl/core', '@deck.gl/mapbox'],
             blueprint: ['@blueprintjs/core', '@blueprintjs/icons'],
           },
         },

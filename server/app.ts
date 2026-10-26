@@ -12,6 +12,7 @@ import { Fr24Provider } from './providers/fr24.js';
 import { OpenSkyProvider } from './providers/opensky.js';
 import { AdsbLolGlobalProvider, AdsbLolProvider } from './providers/adsblol.js';
 import { ProviderError, type AirProvider } from './providers/air-provider.js';
+import { aircraftDetails } from './aircraft-details.js';
 
 export function createArgusServer(config: ServerConfig) {
   const app = express();
@@ -129,6 +130,12 @@ export function createArgusServer(config: ServerConfig) {
     const region = parseRegion(req.query);
     if (!region) return res.status(400).json({ error: 'lat and lon must be valid WGS84 coordinates.' });
     return res.json(await liveSnapshot(region.lat, region.lon));
+  });
+  app.get('/api/aircraft/:hex', async (req, res) => {
+    const hex = req.params.hex.toLowerCase();
+    const callsign = typeof req.query.callsign === 'string' ? req.query.callsign.trim().toUpperCase() : '';
+    if (!/^[a-f0-9]{6}$/.test(hex) || (callsign && !/^[A-Z0-9]{2,10}$/.test(callsign))) return res.status(400).json({ error: 'Invalid aircraft hex or callsign.' });
+    return res.json(await aircraftDetails(hex, callsign));
   });
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Unknown API endpoint' }));
   const dist = resolve(process.cwd(), 'dist');
