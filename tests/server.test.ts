@@ -86,3 +86,35 @@ test('live snapshot validates viewport and returns only observed adsb.lol aircra
     globalThis.fetch = originalFetch;
   }
 });
+
+test('OpenSky mode serves the configured global provider instead of the viewport provider', async () => {
+  const originalFetch = globalThis.fetch;
+  const upstream: string[] = [];
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if (url.startsWith('http://127.0.0.1:')) return originalFetch(input, init);
+    if (url.startsWith('https://auth.opensky-network.org/')) return Response.json({ access_token: 'test-token', expires_in: 1800 });
+    if (url.startsWith('https://opensky-network.org/api/states/all')) {
+      upstream.push(url);
+      assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer test-token');
+      const seconds = Date.now() / 1000;
+      return Response.json({ states: [['abc123', 'GLOBAL1 ', 'US', seconds, seconds, -1, 51, 10000, false, 200, 90]] });
+    }
+    throw new Error(`Unexpected upstream ${url}`);
+  };
+  const config = readConfig({ MOCK_DATA_MODE: 'false', AIR_PROVIDER: 'opensky', AIR_FALLBACK_PROVIDER: 'none', AIR_BOUNDS: '90,-90,-180,180', OPENSKY_CLIENT_ID: 'client', OPENSKY_CLIENT_SECRET: 'secret', AIR_POLL_INTERVAL_MS: '90000' });
+  const app = createArgusServer({ ...config, port: 0 });
+  await app.listen();
+  const address = app.server.address();
+  assert.ok(address && typeof address !== 'string');
+  try {
+    const snapshot = await (await fetch(`http://127.0.0.1:${address.port}/api/snapshot?lat=39&lon=-98`)).json() as Snapshot;
+    assert.equal(snapshot.feeds[0].id, 'opensky');
+    assert.equal(snapshot.counts.air, 1);
+    assert.equal(snapshot.entities[0].label, 'GLOBAL1');
+    assert.equal(upstream.length, 1);
+  } finally {
+    await app.close();
+    globalThis.fetch = originalFetch;
+  }
+});

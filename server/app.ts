@@ -92,16 +92,20 @@ export function createArgusServer(config: ServerConfig) {
   }
 
   async function liveSnapshot(lat: number, lon: number): Promise<Snapshot> {
-    const key = `${lat},${lon}`;
-    let feed = regionalFeeds.get(key);
-    if (!feed) {
-      feed = new AirFeed(new AdsbLolProvider(`${lat},${lon},250`), null, config.air.intervalMs);
-      regionalFeeds.set(key, feed);
-      if (regionalFeeds.size > 24) {
-        const oldest = regionalFeeds.keys().next().value;
-        if (oldest) { regionalFeeds.get(oldest)?.dispose(); regionalFeeds.delete(oldest); }
+    let feed = airFeed;
+    if (config.air.provider === 'adsblol') {
+      const key = `${lat},${lon}`;
+      feed = regionalFeeds.get(key) ?? null;
+      if (!feed) {
+        feed = new AirFeed(new AdsbLolProvider(`${lat},${lon},250`), null, config.air.intervalMs);
+        regionalFeeds.set(key, feed);
+        if (regionalFeeds.size > 24) {
+          const oldest = regionalFeeds.keys().next().value;
+          if (oldest) { regionalFeeds.get(oldest)?.dispose(); regionalFeeds.delete(oldest); }
+        }
       }
     }
+    if (!feed) throw new Error('Live air feed is not configured.');
     const now = Date.now();
     await feed.refresh(now);
     const entities = feed.entities(now);

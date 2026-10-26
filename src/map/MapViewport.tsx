@@ -22,6 +22,7 @@ interface Props {
   onCursor: (coordinates: [number, number]) => void;
   onFps: (fps: number | null) => void;
   onRegion: (region: { lat: number; lon: number }) => void;
+  globalCoverage: boolean;
 }
 
 function overviewZoom(map: Map, projection: Projection) {
@@ -49,7 +50,7 @@ function applyStack(map: Map, stack: LayerStack) {
   }
 }
 
-export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRegion }: Props) {
+export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRegion, globalCoverage }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const deckRef = useRef<MapboxOverlay | null>(null);
@@ -151,19 +152,22 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
       if (map.getZoom() < 3) map.jumpTo({ zoom: overviewZoom(map, projection) });
     }
   }, [projection, loaded]);
+  useEffect(() => {
+    if (loaded && globalCoverage && mapRef.current) mapRef.current.jumpTo({ center: [0, 22], zoom: overviewZoom(mapRef.current, projection) });
+  }, [globalCoverage, loaded]);
 
   const reset = () => {
     const map = mapRef.current;
-    map?.flyTo({ center: [-98, 39], zoom: 3, bearing: 0, pitch: 0, duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600 });
+    map?.flyTo({ center: globalCoverage ? [0, 22] : [-98, 39], zoom: globalCoverage ? overviewZoom(map, projection) : 3, bearing: 0, pitch: 0, duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600 });
   };
   return <section className="map-viewport" aria-label="Global reference map" data-projection={projection} data-map-ready={loaded} data-aircraft-count={isLayerVisible(stack, 'air') ? aircraft.length : 0}>
     <div className="map-canvas" ref={container}/>
-    <div className="map-context"><span className="eyebrow">LIVE OPERATING PICTURE</span><div>Regional coverage <span>/</span> <span className="muted">{projection === 'globe' ? 'Globe' : 'Mercator'}</span></div></div>
+    <div className="map-context"><span className="eyebrow">LIVE OPERATING PICTURE</span><div>{globalCoverage ? 'Global coverage' : 'Regional coverage'} <span>/</span> <span className="muted">{projection === 'globe' ? 'Globe' : 'Mercator'}</span></div></div>
     <div className="map-top-right"><span className="map-reference-tag"><span className="health-dot healthy"/> LOCAL BASEMAP</span></div>
     <div className="map-toolrail" aria-label="Map tools"><Button minimal title="Pan map" aria-label="Pan map" active><Icon name="cursor"/></Button></div>
     <div className="map-navigation"><Button minimal aria-label="Reset north" title="Reset north" className="north-button" onClick={() => mapRef.current?.resetNorth()}><span>N</span><svg width="16" height="18" viewBox="0 0 16 18" style={{ transform: `rotate(${-bearing}deg)` }} aria-hidden="true"><path d="m8 1 6 15-6-4-6 4Z" fill="none" stroke="currentColor"/></svg></Button><div className="zoom-buttons"><Button minimal aria-label="Zoom in" title="Zoom in" onClick={() => mapRef.current?.zoomIn()}><Icon name="plus"/></Button><Button minimal aria-label="Zoom out" title="Zoom out" onClick={() => mapRef.current?.zoomOut()}><Icon name="minus"/></Button></div><Button minimal aria-label="Reset map view" title="Reset world overview" onClick={reset}><Icon name="globe"/></Button></div>
     <div className="map-bottom-left"><span className="coordinate-tick"/><span className="mono">WGS84</span><span className="map-coordinate-divider">/</span><span className="mono">ZOOM {zoom.toFixed(2)}</span></div>
-    <div className="map-phase-note"><span className="phase-index"><Icon name="air" size={20}/></span><div><strong>{isLayerVisible(stack, 'air') ? `${formatCount(aircraft.length)} observed aircraft` : 'Air layer hidden'}</strong><span>Pan the map to load a new 250-NM live region.</span></div></div>
+    <div className="map-phase-note"><span className="phase-index"><Icon name="air" size={20}/></span><div><strong>{isLayerVisible(stack, 'air') ? `${formatCount(aircraft.length)} observed aircraft` : 'Air layer hidden'}</strong><span>{globalCoverage ? 'OpenSky network state vectors worldwide.' : 'Pan the map to load a new 250-NM live region.'}</span></div></div>
     {hover && isLayerVisible(stack, 'air') && <div className="map-tooltip" style={{ left: Math.max(8, Math.min(hover.x + 15, (container.current?.clientWidth ?? 300) - 260)), top: Math.max(8, Math.min(hover.y + 15, (container.current?.clientHeight ?? 300) - 145)) }}>
       <div><strong className="mono">{hover.entity.label}</strong><Badge value={hover.entity.provenance}/></div>
       <span>{hover.entity.subtype} · {String(hover.entity.meta.airline ?? 'Unknown')}</span>

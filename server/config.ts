@@ -22,7 +22,7 @@ export function readConfig(env: Record<string, string | undefined>): ServerConfi
   const fallback = env.AIR_FALLBACK_PROVIDER || 'opensky';
   if (!['fr24', 'opensky', 'adsblol'].includes(airProvider)) throw new Error('Invalid AIR_PROVIDER');
   if (!['opensky', 'adsblol', 'none'].includes(fallback)) throw new Error('Invalid AIR_FALLBACK_PROVIDER');
-  const bounds = env.AIR_BOUNDS || '60,15,-130,-60';
+  const bounds = env.AIR_BOUNDS || '90,-90,-180,180';
   const [north, south, west, east] = bounds.split(',').map(Number);
   if (bounds.split(',').length !== 4 || ![north, south, west, east].every(Number.isFinite) || north > 90 || south < -90 || north <= south || west < -180 || east > 180 || west >= east) throw new Error('AIR_BOUNDS must be north,south,west,east within WGS84 bounds.');
   const point = env.ADSB_POINT || '39,-98,250';
@@ -35,6 +35,6 @@ export function readConfig(env: Record<string, string | undefined>): ServerConfi
     pollIntervalMs: integer('POLL_INTERVAL_MS', 2000, 500, 60000),
     cacheTtlMs: integer('CACHE_TTL_MS', 1500, 100, 60000),
     clientOrigin: env.CLIENT_ORIGIN || undefined,
-    air: { provider: airProvider as ServerConfig['air']['provider'], fallback: fallback as ServerConfig['air']['fallback'], bounds, point, intervalMs: integer('AIR_POLL_INTERVAL_MS', 60000, 60000, 3600000), fr24Key: env.FR24_API_KEY || '', clientId: env.OPENSKY_CLIENT_ID || '', clientSecret: env.OPENSKY_CLIENT_SECRET || '' },
+    air: { provider: airProvider as ServerConfig['air']['provider'], fallback: fallback as ServerConfig['air']['fallback'], bounds, point, intervalMs: integer('AIR_POLL_INTERVAL_MS', 90000, 60000, 3600000), fr24Key: env.FR24_API_KEY || '', clientId: env.OPENSKY_CLIENT_ID || '', clientSecret: env.OPENSKY_CLIENT_SECRET || '' },
   };
 }

@@ -39,7 +39,7 @@ if (!liveData) await page.route('**/api/snapshot?*', async route => {
 try {
   await page.goto(base, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-map-ready="true"]', { timeout: 30000 });
-  await page.getByText('Live region · refreshes every 60s', { exact: true }).waitFor();
+  await page.getByText(/(Live region|Global feed) · refreshes every \d+s/, { exact: true }).waitFor();
   if (liveData) await page.waitForFunction(() => Number(document.querySelector('[data-aircraft-count]')?.getAttribute('data-aircraft-count')) > 0);
   const initialAircraft = Number(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'));
   assert.ok(initialAircraft > 0);
@@ -48,6 +48,10 @@ try {
   assert.equal(await page.getByRole('textbox').count(), 0);
   assert.equal(await page.getByText('REPLAY UNAVAILABLE').count(), 0);
   assert.equal(await page.locator('[data-layer="sea"], [data-layer="truck"], [data-layer="ports"], [data-layer="corridors"]').count(), 0);
+  if (liveData) {
+    await page.getByText('LIVE GLOBAL COVERAGE', { exact: true }).waitFor();
+    assert.ok((await page.locator('.status-feeds').innerText()).includes('OPENSKY'));
+  }
   await page.screenshot({ path: 'artifacts/argus-desktop.png', fullPage: true });
   assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), String(initialAircraft));
   const typeFilter = page.getByRole('combobox', { name: 'Air traffic Aircraft type', exact: true });
