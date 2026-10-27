@@ -21,6 +21,7 @@ export function LayerPanel({ stack, dispatch, snapshot, connection }: Props) {
   const filters = stack.airFilters ?? defaultAirFilters;
   const aircraft = snapshot?.entities.filter(entity => entity.layer === 'air') ?? [];
   const filterOptions: Record<keyof AirFilters, { label: string; value: string }[]> = {
+    classification: [{ label: 'All aircraft', value: 'all' }, { label: 'Civilian', value: 'civilian' }, { label: 'Military', value: 'military' }],
     altitude: [{ label: 'All altitudes', value: 'all' }, { label: '< 10,000 ft', value: 'low' }, { label: '10–30,000 ft', value: 'mid' }, { label: '≥ 30,000 ft', value: 'high' }],
     airline: [{ label: 'All airlines', value: 'all' }, ...[...new Set(aircraft.map(entity => String(entity.meta.airline ?? 'Unknown')))].sort().map(value => ({ label: value, value }))],
     aircraft: [{ label: 'All types', value: 'all' }, ...[...new Set(aircraft.map(entity => entity.subtype))].sort().map(value => ({ label: value, value }))],
@@ -56,7 +57,7 @@ export function LayerPanel({ stack, dispatch, snapshot, connection }: Props) {
             <Slider min={0} max={100} stepSize={1} labelRenderer={false} value={Math.round(layer.opacity * 100)} onChange={value => dispatch({ type: 'opacity', id: layer.id, value: value / 100 })} handleHtmlProps={{ 'aria-label': `${layer.name} opacity` }}/>
             <p className="layer-description">{layer.description}</p>
             {layer.filters && <div className="layer-filters"><div className="eyebrow">FILTERS <span>{layer.id === 'air' ? 'ACTIVE' : `PHASE ${layer.phase}`}</span></div>{layer.filters.map(filter => {
-              const key: keyof AirFilters = filter === 'Altitude band' ? 'altitude' : filter === 'Aircraft type' ? 'aircraft' : 'airline';
+              const key: keyof AirFilters = filter === 'Altitude band' ? 'altitude' : filter === 'Aircraft type' ? 'aircraft' : filter === 'Aircraft class' ? 'classification' : 'airline';
               return <label className="filter-row" key={filter}><span>{filter}</span><HTMLSelect disabled={layer.id !== 'air'} aria-label={`${layer.name} ${filter}`} value={layer.id === 'air' ? filters[key] : 'all'} onChange={event => dispatch({ type: 'air-filter', key, value: event.target.value })} options={layer.id === 'air' ? filterOptions[key] : [{ label: 'All', value: 'all' }]}/></label>;
             })}{layer.id === 'air' && <Button minimal small onClick={() => (Object.keys(defaultAirFilters) as (keyof AirFilters)[]).forEach(key => dispatch({ type: 'air-filter', key, value: 'all' }))}>Clear air filters</Button>}</div>}
             <div className="layer-update"><span>LAST UPDATE</span><span className="mono">{feed ? `${utcTime(feed.updatedAt)}Z` : layer.phase === 0 ? layer.id === 'terminator' ? 'COMPUTED / 60s' : 'BUNDLED' : '—'}</span></div>

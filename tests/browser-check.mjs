@@ -26,8 +26,8 @@ if (!liveData) await page.route('**/api/snapshot?*', async route => {
   requestedRegions.push([Number(url.searchParams.get('lat')), Number(url.searchParams.get('lon'))]);
   const now = Date.now();
   const entities = [
-    { id: 'adsblol-a1', layer: 'air', lat: 39.5, lon: -97.5, heading: 90, speed: 430, altitude: 34000, label: 'LIVE1', subtype: 'A320', origin: 'Unknown', destination: 'Unknown', source: 'adsblol', ts: now - 1000, provenance: 'LIVE', meta: { airline: 'Unknown', missingFields: [] } },
-    { id: 'adsblol-a2', layer: 'air', lat: 38.5, lon: -98.5, heading: 180, speed: 390, altitude: 8000, label: 'LIVE2', subtype: 'B738', origin: 'Unknown', destination: 'Unknown', source: 'adsblol', ts: now - 2000, provenance: 'LIVE', meta: { airline: 'Unknown', missingFields: [] } },
+    { id: 'adsblol-a1', layer: 'air', lat: 39.5, lon: -97.5, heading: 90, speed: 430, altitude: 34000, label: 'LIVE1', subtype: 'A320', origin: 'Unknown', destination: 'Unknown', source: 'adsblol', ts: now - 1000, provenance: 'LIVE', meta: { airline: 'Unknown', military: false, missingFields: [] } },
+    { id: 'adsblol-a2', layer: 'air', lat: 38.5, lon: -98.5, heading: 180, speed: 390, altitude: 8000, label: 'LIVE2', subtype: 'B738', origin: 'Unknown', destination: 'Unknown', source: 'adsblol', ts: now - 2000, provenance: 'LIVE', meta: { airline: 'Unknown', military: true, missingFields: [] } },
   ];
   await route.fulfill({ json: { type: 'snapshot', version: 1, mode: 'mixed', sequence: requestedRegions.length, generatedAt: now, intervalMs: 60000, counts: { air: 2, sea: 0, truck: 0 }, entities, feeds: [
     { id: 'adsblol', layer: 'air', name: 'adsblol', health: 'healthy', provenance: 'LIVE', count: 2, updatedAt: now, message: 'Observed air traffic from adsblol.' },
@@ -60,6 +60,15 @@ try {
   assert.ok(Number(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count')) <= initialAircraft);
   await page.getByRole('combobox', { name: 'Air traffic Altitude band', exact: true }).selectOption('low');
   assert.ok(Number(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count')) <= initialAircraft);
+  await page.getByRole('button', { name: 'Clear air filters', exact: true }).click();
+  assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), String(initialAircraft));
+  const classFilter = page.getByRole('combobox', { name: 'Air traffic Aircraft class', exact: true });
+  await classFilter.selectOption('military');
+  const militaryAircraft = Number(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'));
+  assert.ok(militaryAircraft >= 0 && militaryAircraft <= initialAircraft);
+  if (!liveData) assert.equal(militaryAircraft, 1);
+  await classFilter.selectOption('civilian');
+  if (!liveData) assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), '1');
   await page.getByRole('button', { name: 'Clear air filters', exact: true }).click();
   assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), String(initialAircraft));
   await page.getByRole('button', { name: 'Hide Air traffic', exact: true }).click();

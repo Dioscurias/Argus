@@ -28,19 +28,22 @@ test('OpenSky converts units, rejects missing locations, and does not invent rou
   assert.equal(records[0].meta.airline, 'Unknown');
 });
 test('adsb position age uses seen_pos and excludes non-aircraft records without coordinates', () => {
-  const records = normalizeAdsb({ now, ac: [{ hex: 'abc', lat: 40, lon: -75, alt_baro: 'ground', gs: 0, track: 0, seen_pos: 90, flight: 'TST2', t: 'B738' }, { hex: 'bad' }] }, now);
+  const records = normalizeAdsb({ now, ac: [{ hex: 'abc', lat: 40, lon: -75, alt_baro: 'ground', gs: 0, track: 0, seen_pos: 90, flight: 'TST2', t: 'B738', dbFlags: 1 }, { hex: 'bad' }] }, now);
   assert.equal(records.length, 1);
   assert.equal(records[0].provenance, 'DELAYED');
   assert.equal(records[0].altitude, 0);
   assert.equal(records[0].meta.onGround, true);
+  assert.equal(records[0].meta.military, true);
 });
-test('air filters combine altitude, airline and aircraft type without admitting missing altitudes', () => {
-  const entities = normalizeFr24({ data: [
-    { fr24_id: 'a', lat: 1, lon: 2, alt: 35000, type: 'A320', operating_as: 'AAA', timestamp: now / 1000 },
-    { fr24_id: 'b', lat: 1, lon: 2, alt: null, type: 'A320', operating_as: 'AAA', timestamp: now / 1000 },
+test('air filters combine class, altitude, airline and aircraft type without treating unknown classifications as civilian', () => {
+  const entities = normalizeAdsb({ now, ac: [
+    { hex: 'mil', lat: 1, lon: 2, alt_baro: 35000, t: 'C17', flight: 'RCH1', seen_pos: 0, dbFlags: 1 },
+    { hex: 'civil', lat: 1, lon: 2, alt_baro: 35000, t: 'A320', flight: 'TST1', seen_pos: 0, dbFlags: 0 },
+    { hex: 'unknown', lat: 1, lon: 2, alt_baro: null, t: 'A320', flight: 'TST2', seen_pos: 0 },
   ] }, now);
-  assert.equal(filterAircraft(entities, { altitude: 'high', airline: 'AAA', aircraft: 'A320' }).length, 1);
-  assert.equal(filterAircraft(entities, { altitude: 'all', airline: 'BBB', aircraft: 'all' }).length, 0);
+  assert.deepEqual(filterAircraft(entities, { classification: 'military', altitude: 'high', airline: 'all', aircraft: 'C17' }).map(entity => entity.id), ['adsblol-mil']);
+  assert.deepEqual(filterAircraft(entities, { classification: 'civilian', altitude: 'all', airline: 'all', aircraft: 'all' }).map(entity => entity.id), ['adsblol-civil']);
+  assert.equal(filterAircraft(entities, { classification: 'all', altitude: 'all', airline: 'all', aircraft: 'all' }).length, 3);
 });
 test('air feed falls back on primary failure, retains delayed observations, and respects next poll', async () => {
   let calls = 0;
@@ -91,7 +94,7 @@ test('global adsb.lol requests grouped aircraft types and normalizes positioned 
   let requested = '';
   globalThis.fetch = async (input) => {
     requested = String(input);
-    return Response.json({ now, ac: [{ hex: 'abc123', lat: 48, lon: 9, alt_baro: 30000, gs: 450, track: 90, seen_pos: 1, t: 'A320' }] });
+    return Response.json({ now, ac: [{ hex: 'abc123', lat: 48, lon: 9, alt_baro: 30000, gs: 450, track: 90, seen_pos: 1, t: 'A320', dbFlags: 1 }] });
   };
   try {
     const records = await new AdsbLolGlobalProvider().poll(now);
@@ -99,6 +102,7 @@ test('global adsb.lol requests grouped aircraft types and normalizes positioned 
     assert.match(requested, /A320/);
     assert.equal(records.length, 1);
     assert.equal(records[0].source, 'adsblol');
+    assert.equal(records[0].meta.military, true);
     assert.equal('raw' in records[0].meta, false);
   } finally { globalThis.fetch = original; }
 });

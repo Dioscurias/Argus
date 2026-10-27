@@ -7,7 +7,7 @@ function date(value: unknown): number | null {
   const time = numeric(value) ? value < 1e12 ? value * 1000 : value : typeof value === 'string' ? Date.parse(value) : NaN;
   return Number.isFinite(time) && time > 0 && time <= 8.64e15 ? time : null;
 }
-interface Measurement { id: unknown; lat: unknown; lon: unknown; heading: unknown; speed: unknown; altitude: unknown; ts: unknown; callsign?: unknown; aircraft?: unknown; airline?: unknown; origin?: unknown; destination?: unknown; onGround?: unknown; modeled?: boolean }
+interface Measurement { id: unknown; lat: unknown; lon: unknown; heading: unknown; speed: unknown; altitude: unknown; ts: unknown; callsign?: unknown; aircraft?: unknown; airline?: unknown; origin?: unknown; destination?: unknown; onGround?: unknown; military?: boolean; modeled?: boolean }
 function normalize(source: string, item: Measurement, raw: unknown, now: number): Entity | null {
   if (!numeric(item.lat) || !numeric(item.lon) || Math.abs(item.lat) > 90 || Math.abs(item.lon) > 180 || !label(item.id, '')) return null;
   const ts = date(item.ts);
@@ -21,7 +21,7 @@ function normalize(source: string, item: Measurement, raw: unknown, now: number)
     label: label(item.callsign, String(item.id)), subtype: label(item.aircraft),
     origin: label(item.origin), destination: label(item.destination), source, ts: ts ?? now,
     provenance: item.modeled ? 'MODELED' : ts && now - ts <= 60000 && ts <= now + 10000 ? 'LIVE' : 'DELAYED',
-    meta: { airline: label(item.airline), onGround: item.onGround === true, missingFields, raw, synthetic: false },
+    meta: { airline: label(item.airline), onGround: item.onGround === true, military: item.military, missingFields, raw, synthetic: false },
   };
 }
 function compact(entities: (Entity | null)[]) {
@@ -50,7 +50,7 @@ export function normalizeAdsb(payload: unknown, now: number, includeRaw = true):
   const observedAt = date(data.now) ?? now;
   const entities = compact(data.ac.map(raw => {
     const r = record(raw);
-    return normalize('adsblol', { id: r.hex, lat: r.lat, lon: r.lon, heading: r.track, speed: r.gs, altitude: r.alt_baro === 'ground' ? 0 : r.alt_baro, ts: numeric(r.seen_pos) ? observedAt - r.seen_pos * 1000 : null, callsign: r.flight, aircraft: r.t, onGround: r.alt_baro === 'ground' }, raw, now);
+    return normalize('adsblol', { id: r.hex, lat: r.lat, lon: r.lon, heading: r.track, speed: r.gs, altitude: r.alt_baro === 'ground' ? 0 : r.alt_baro, ts: numeric(r.seen_pos) ? observedAt - r.seen_pos * 1000 : null, callsign: r.flight, aircraft: r.t, onGround: r.alt_baro === 'ground', military: numeric(r.dbFlags) ? (r.dbFlags & 1) === 1 : undefined }, raw, now);
   }));
   if (!includeRaw) for (const entity of entities) delete entity.meta.raw;
   return entities;
