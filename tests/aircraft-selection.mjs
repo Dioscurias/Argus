@@ -50,8 +50,9 @@ async function selectVisiblePlane() {
   for (const [x, y] of candidates.slice(0, 80)) {
     await page.mouse.move(box.x + x, box.y + y);
     if (await page.locator('.map-tooltip strong.mono').isVisible()) {
+      const callsign = await page.locator('.map-tooltip strong.mono').innerText();
+      if (!live && callsign !== 'BAW3G') continue;
       if (live) {
-        const callsign = await page.locator('.map-tooltip strong.mono').innerText();
         const entity = liveEntities.find(entity => entity.label === callsign);
         const hex = entity?.id.match(/-([a-f0-9]{6})$/)?.[1];
         if (!hex) continue;
@@ -81,6 +82,10 @@ try {
   await page.waitForFunction(() => { const img = document.querySelector('.aircraft-photo img'); return img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0; }, undefined, { timeout: 15000 });
   await page.locator('.route-codes').waitFor({ timeout: 15000 });
   if (!live) await page.getByText(/\d+ positions collected in this session/).waitFor();
+  if (live && process.env.TEST_OBSERVE_TRAIL === 'true') {
+    console.log('Waiting for the next live observation to verify the session trail…');
+    await page.getByText(/\d+ positions collected in this session/).waitFor({ timeout: 130000 });
+  }
   await page.getByRole('button', { name: '2D projection', exact: true }).click();
   await page.getByRole('button', { name: 'Fit flight path', exact: true }).click();
   await page.waitForTimeout(1000);

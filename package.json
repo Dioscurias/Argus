@@ -15,7 +15,8 @@
     "start": "node dist-server/server/index.js",
     "test": "tsx --test tests/*.test.ts",
     "test:browser": "node tests/browser-check.mjs",
-    "test:selection": "node tests/aircraft-selection.mjs"
+    "test:selection": "node tests/aircraft-selection.mjs",
+    "test:motion": "node tests/aircraft-motion.mjs"
   },
   "dependencies": {
     "@blueprintjs/core": "^6.0.0",

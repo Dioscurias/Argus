@@ -35,7 +35,9 @@ Open **http://127.0.0.1:3001**. Run these commands from the project root. The se
 - The specified dark palette, Inter UI type, JetBrains Mono data type, Blueprint controls, command bar, layer stack, aircraft inspector, and status bar.
 - A pan/zoom reference map with 2D Mercator and globe projections, north reset, and world-view reset. Natural Earth country geometry, OurAirports large/medium airport points, and all fonts are bundled locally.
 - Native aircraft symbols and flight paths follow both projections, including globe horizon clipping. Hover for a summary; click to isolate a plane and see its registration, operator/owner, photo, reference airport route, and observed session trail. Escape or **Show all aircraft** restores traffic. Altitude and aircraft-type filters narrow the unselected view.
-- Photos match the aircraft hex code through hexdb.io and show source attribution. Missing photos/routes and provider errors are explicitly displayed; no generic photo or invented route is substituted.
+- Photos match the aircraft hex code through hexdb.io. Source details and attribution are kept in this README; provider names are not displayed in the interface. Original photo watermarks remain intact. Missing photos/routes and lookup errors are explicitly displayed; no generic photo or invented route is substituted.
+- Between reports, aircraft positions are estimated along the reported ground track at the reported ground speed using spherical dead reckoning. A new observation reconciles the displayed position and heading over 2 seconds. Missing speed/track/timestamps and on-ground aircraft are not extrapolated. Estimates stop 5 minutes after the last observation. A dotted mint extension is estimated movement; it never enters the solid observed trail or changes the report timestamp/provenance.
+- Animation uses native MapLibre geometry updates with worker backpressure, up to 10 updates/second for large fleets and 30 for small selections. Hidden tabs/layers pause rendering; resuming recomputes positions from report timestamps rather than accumulating timer drift.
 - Dashed gold lines are great-circle references between airports in a callsign database, not a confirmed flight plan or flown path. Solid mint trails contain only observations collected while this browser session is open (up to 2 hours / 240 samples per aircraft). Coverage gaps longer than 5 minutes break the trail; date-line crossings are split correctly. Complete pre-session flight history is unavailable.
 - Separate server-side adapters for the official Flightradar24 SDK, OpenSky OAuth/anonymous REST, and adsb.lol point API. Observations are normalized to knots/feet/WGS84, old or retained positions are labeled DELAYED, and failures retain the reference map.
 - Five functional layer definitions: basemap, graticule, day/night, airports, and observed aircraft. Toggle visibility, set opacity, solo a layer, drag it to reorder, or use its drag handle with the arrow keys.
@@ -106,6 +108,7 @@ For browser checks, start `npm run dev` in another terminal, then:
 ```sh
 npm run test:browser
 npm run test:selection
+npm run test:motion
 ```
 
 The browser tests use installed Google Chrome on macOS or Playwright Chromium. They default to deterministic provider fixtures. Set `TEST_LIVE_DATA=true TEST_URL=https://argus-one-mu.vercel.app` to exercise actual production data, routes, and photos. Selection checks find rendered aircraft pixels and click the canvas, verify isolation and loaded images, switch projections, and check mobile details and Escape. Screenshots are written to `artifacts/`.

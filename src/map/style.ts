@@ -7,7 +7,7 @@ export const mapLayerIds: Record<string, string[]> = {
   graticule: ['coordinate-grid'],
   terminator: ['night-mask'],
   airports: ['airport-points'],
-  air: ['flight-route', 'flight-trail', 'route-airports', 'selected-halo', 'aircraft'],
+  air: ['flight-route', 'flight-trail', 'flight-estimate', 'route-airports', 'selected-halo', 'aircraft'],
 };
 
 export function createMapStyle(): StyleSpecification {

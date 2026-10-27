@@ -206,6 +206,8 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .selection-controls > div { display: flex; align-items: center; gap: 6px; font-size: 9px; color: #b7c4d2; width: 100%; }
 .trail-key, .route-key { display: inline-block; width: 18px; border-top: 2px solid #65f3cd; flex-shrink: 0; }
 .route-key { border-top: 2px dashed #d8b56d; margin-left: 5px; }
+.estimate-key { display: inline-block; width: 18px; border-top: 2px dotted #65f3cd; flex-shrink: 0; }
+.motion-status { margin-left: auto; color: #7e91a6; font-size: 8px; }
 .map-viewport[data-selected-aircraft]:not([data-selected-aircraft=""]) .map-toolrail { display: none; }
 @media (max-width: 800px) {
   .show-inspector .inspector:has(.aircraft-inspector) { top: auto; bottom: 0; width: 100%; height: 44%; border-top: 1px solid var(--border); }

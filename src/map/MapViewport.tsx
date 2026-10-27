@@ -8,7 +8,8 @@ import { makeNightMask } from './geography';
 import { isLayerVisible } from '../layers/state';
 import type { LayerStack } from '../layers/types';
 import type { Entity } from '../../shared/schema';
-import { addAircraftLayers, updateAircraft, updateFlightPath } from './aircraft-renderer';
+import { addAircraftLayers, updateAircraft, updateAircraftMotion, updateEstimatedPath, updateFlightPath } from './aircraft-renderer';
+import { AircraftMotion, type AircraftPosition } from './aircraft-motion';
 import type { TrackPoint } from './flight-path';
 import type { RouteAirport } from '../../shared/aircraft-details';
 import { airportOpacity } from '../layers/AirportsLayer';
@@ -61,6 +62,9 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
   const mapRef = useRef<Map | null>(null);
   const aircraftRef = useRef(aircraft);
   aircraftRef.current = aircraft;
+  const motion = useRef(new AircraftMotion());
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
   const stackRef = useRef(stack);
   const projectionRef = useRef(projection);
   const appliedProjection = useRef(projection);
@@ -157,13 +161,42 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
   useEffect(() => { if (loaded && mapRef.current) applyStack(mapRef.current, stack); }, [stack, loaded]);
   useEffect(() => {
     if (!loaded || !mapRef.current) return;
-    updateAircraft(mapRef.current, aircraft, selected?.id ?? null);
+    motion.current.sync(aircraft, Date.now());
+    const positions = motion.current.positions(Date.now());
+    updateAircraft(mapRef.current, aircraft, selected?.id ?? null, positions);
+    updateEstimatedPath(mapRef.current, selected, positions.find(position => position.id === selected?.id));
     setHover(previous => {
       if (!previous || !isLayerVisible(stack, 'air')) return null;
       const updated = aircraft.find(entity => entity.id === previous.entity.id);
       return updated ? { ...previous, entity: updated } : null;
     });
   }, [loaded, stack, aircraft, selected?.id]);
+  useEffect(() => {
+    if (!loaded || !mapRef.current) return;
+    const map = mapRef.current;
+    let frame = 0, lastUpdate = 0;
+    let previous = new globalThis.Map<string, AircraftPosition>();
+    const animate = (time: number) => {
+      frame = requestAnimationFrame(animate);
+      const source = map.getSource('aircraft') as GeoJSONSource | undefined;
+      const interval = aircraftRef.current.length > 1000 ? 100 : 33;
+      if (document.hidden || time - lastUpdate < interval || !source?.loaded() || !isLayerVisible(stackRef.current, 'air') || (stackRef.current.layers.find(layer => layer.id === 'air')?.opacity ?? 0) === 0) return;
+      lastUpdate = time;
+      const positions = motion.current.positions(Date.now());
+      const changed = positions.filter(position => {
+        const old = previous.get(position.id);
+        return !old || old.lon !== position.lon || old.lat !== position.lat || old.heading !== position.heading;
+      });
+      previous = new globalThis.Map(positions.map(position => [position.id, position]));
+      if (changed.length) {
+        updateAircraftMotion(map, changed);
+        const current = selectedRef.current;
+        if (current) updateEstimatedPath(map, current, positions.find(position => position.id === current.id));
+      }
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [loaded]);
   useEffect(() => {
     if (loaded && mapRef.current) updateFlightPath(mapRef.current, track, route);
   }, [loaded, track, route]);
@@ -205,7 +238,7 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
     <div className="map-canvas" ref={container}/>
     <div className="map-context"><span className="eyebrow">LIVE OPERATING PICTURE</span><div>{globalCoverage ? 'Global coverage' : 'Regional coverage'} <span>/</span> <span className="muted">{projection === 'globe' ? 'Globe' : 'Mercator'}</span></div></div>
     <div className="map-top-right"><span className="map-reference-tag"><span className="health-dot healthy"/> LOCAL BASEMAP</span></div>
-    {selected && <div className="selection-controls"><span className="mono">{selected.label} · ISOLATED</span><Button small onClick={() => onSelect(null)}>Show all aircraft</Button><Button small minimal onClick={fitFlight}>Fit flight path</Button><div><span className="trail-key"/> Observed trail <span className="route-key"/> Reference route</div></div>}
+    {selected && <div className="selection-controls"><span className="mono">{selected.label} · ISOLATED</span><Button small onClick={() => onSelect(null)}>Show all aircraft</Button><Button small minimal onClick={fitFlight}>Fit flight path</Button><div><span className="trail-key"/> Observed <span className="estimate-key"/> Estimated <span className="route-key"/> Route</div></div>}
     <div className="map-toolrail" aria-label="Map tools"><Button minimal title="Pan map" aria-label="Pan map" active><Icon name="cursor"/></Button></div>
     <div className="map-navigation"><Button minimal aria-label="Reset north" title="Reset north" className="north-button" onClick={() => mapRef.current?.resetNorth()}><span>N</span><svg width="16" height="18" viewBox="0 0 16 18" style={{ transform: `rotate(${-bearing}deg)` }} aria-hidden="true"><path d="m8 1 6 15-6-4-6 4Z" fill="none" stroke="currentColor"/></svg></Button><div className="zoom-buttons"><Button minimal aria-label="Zoom in" title="Zoom in" onClick={() => mapRef.current?.zoomIn()}><Icon name="plus"/></Button><Button minimal aria-label="Zoom out" title="Zoom out" onClick={() => mapRef.current?.zoomOut()}><Icon name="minus"/></Button></div><Button minimal aria-label="Reset map view" title="Reset world overview" onClick={reset}><Icon name="globe"/></Button></div>
     <div className="map-bottom-left"><span className="coordinate-tick"/><span className="mono">WGS84</span><span className="map-coordinate-divider">/</span><span className="mono">ZOOM {zoom.toFixed(2)}</span></div>
@@ -215,9 +248,9 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
       <span>{hover.entity.subtype} · {String(hover.entity.meta.airline ?? 'Unknown')}</span>
       <span>{hover.entity.origin} → {hover.entity.destination}</span>
       <span className="mono">{Array.isArray(hover.entity.meta.missingFields) && hover.entity.meta.missingFields.includes('altitude') ? 'ALT —' : `${formatCount(Math.round(hover.entity.altitude))} FT`} · {Array.isArray(hover.entity.meta.missingFields) && hover.entity.meta.missingFields.includes('speed') ? 'SPD —' : `${Math.round(hover.entity.speed)} KT`}</span>
-      <small>{hover.entity.source} · {utcTime(hover.entity.ts)}Z</small>
+      <small>Reported {utcTime(hover.entity.ts)}Z · estimated motion</small>
     </div>}
-    {!hover && airportHover && <div className="map-tooltip" style={{ left: Math.max(8, Math.min(airportHover.x + 15, (container.current?.clientWidth ?? 300) - 260)), top: Math.max(8, Math.min(airportHover.y + 15, (container.current?.clientHeight ?? 300) - 90)) }}><div><strong>{airportHover.code}</strong><Badge value="REFERENCE"/></div><span>{airportHover.name}</span><small>OurAirports · bundled reference</small></div>}
+    {!hover && airportHover && <div className="map-tooltip" style={{ left: Math.max(8, Math.min(airportHover.x + 15, (container.current?.clientWidth ?? 300) - 260)), top: Math.max(8, Math.min(airportHover.y + 15, (container.current?.clientHeight ?? 300) - 90)) }}><div><strong>{airportHover.code}</strong><Badge value="REFERENCE"/></div><span>{airportHover.name}</span><small>Airport reference</small></div>}
     {!loaded && !error && <div className="map-state-message"><Icon name="globe" size={24}/><span>Initializing reference map…</span></div>}
     {error && <div className="map-state-message error" role="alert"><Icon name="info" size={24}/><p>{error}</p><Button small onClick={() => setAttempt(value => value + 1)}>Retry map</Button></div>}
   </section>;

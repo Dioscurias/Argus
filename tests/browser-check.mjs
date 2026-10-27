@@ -50,7 +50,7 @@ try {
   assert.equal(await page.locator('[data-layer="sea"], [data-layer="truck"], [data-layer="ports"], [data-layer="corridors"]').count(), 0);
   if (liveData) {
     await page.getByText('LIVE GLOBAL COVERAGE', { exact: true }).waitFor();
-    assert.match(await page.locator('.status-feeds').innerText(), /OPENSKY|ADSB\.LOL GLOBAL/);
+    assert.match(await page.locator('.status-feeds').innerText(), /CONNECTED/);
   }
   await page.screenshot({ path: 'artifacts/argus-desktop.png', fullPage: true });
   assert.equal(await page.locator('[data-aircraft-count]').getAttribute('data-aircraft-count'), String(initialAircraft));
@@ -126,6 +126,7 @@ try {
   assert.equal(await page.getByRole('complementary', { name: 'Map layers', exact: true }).isVisible(), false);
   assert.deepEqual(externalRequests, [], 'Runtime assets must be local');
   assert.deepEqual(errors, [], 'No browser exceptions or unexpected console errors');
+  assert.doesNotMatch(await page.locator('body').innerText(), /adsb\.lol|opensky|hexdb|ourairports|natural earth/i, 'Provider names belong in the README, not the interface');
   console.log('PASS: observed HTTP feed, functional-only UI, desktop/mobile shell, WebGL map, visibility, opacity, solo, keyboard/drag reorder, day/night toggle, globe/2D, zoom, and coordinates.');
   console.log('Screenshots: artifacts/argus-{desktop,globe,mobile}.png');
 } catch (error) {
