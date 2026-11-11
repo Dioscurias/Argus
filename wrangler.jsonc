@@ -1,4 +1,4 @@
-{
+e{
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "argus-opensky-proxy",
   "main": "worker/opensky-proxy.ts",
