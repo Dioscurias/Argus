@@ -5,6 +5,7 @@ dist-server/
 .env.*
 !.env.example
 artifacts/
+.worktrees/
 *.log
 .DS_Store
 .vercel/
