@@ -8,6 +8,7 @@
   },
   "rewrites": [
     { "source": "/ws", "destination": "/api/server" },
+    { "source": "/api/aviation-brief", "destination": "/api/server" },
     { "source": "/api/health", "destination": "/api/server" },
     { "source": "/api/snapshot", "destination": "/api/server" },
     { "source": "/api/aircraft/:hex", "destination": "/api/server" }

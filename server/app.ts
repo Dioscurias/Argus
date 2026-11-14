@@ -12,6 +12,7 @@ import { Fr24Provider } from './providers/fr24.js';
 import { OpenSkyProvider } from './providers/opensky.js';
 import { AdsbLolGlobalProvider, AdsbLolProvider } from './providers/adsblol.js';
 import { ProviderError, type AirProvider } from './providers/air-provider.js';
+import { createAviationBrief } from './aviation-brief.js';
 import { aircraftDetails } from './aircraft-details.js';
 
 export function createArgusServer(config: ServerConfig) {
@@ -28,6 +29,7 @@ export function createArgusServer(config: ServerConfig) {
     : { id: 'fr24', minIntervalMs: 60000, poll: async () => { throw new ProviderError(); } };
   const airFeed = config.mockMode ? null : new AirFeed(makeAirProvider(config.air.provider), config.air.fallback === 'none' || config.air.fallback === config.air.provider ? null : makeAirProvider(config.air.fallback), config.air.intervalMs);
   const regionalFeeds = new Map<string, AirFeed>();
+  const aviationBrief = createAviationBrief();
   const cache = new TTLCache<Snapshot>(config.cacheTtlMs);
   let sequence = 0;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
@@ -119,6 +121,7 @@ export function createArgusServer(config: ServerConfig) {
   }
 
   app.use('/api', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+  app.get('/api/aviation-brief', async (_req, res) => res.json(await aviationBrief()));
   app.get('/api/health', async (_req, res) => {
     if (config.mockMode) return res.json({ status: 'ok', phase: 1, mode: 'mock', feeds: snapshot().feeds });
     const [lat, lon] = config.air.point.split(',').map(Number);

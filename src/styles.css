@@ -630,3 +630,25 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+
+.environment-bar { gap: 10px; }
+.environment-bar > div:first-child { min-width: 0; }
+.environment-detail { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.aviation-brief { margin-left: auto; flex-shrink: 0; }
+.aviation-alert { color: #ffd3b5; background: #4a241e; border: 1px solid #9a5948; padding: 3px 7px; white-space: nowrap; letter-spacing: 0; }
+.aviation-alert span { margin-left: 6px; }
+.aviation-alert.uncertain { background: #392e20; border-color: #82653c; }
+.aviation-news-button, .aviation-news button { font: inherit; cursor: pointer; border: 1px solid #53687c; color: #e1eaf5; background: #1b2835; padding: 2px 9px; border-radius: 3px; }
+.aviation-news { width: min(520px, calc(100vw - 24px)); max-height: min(78dvh, 720px); padding: 0; overflow: auto; color: #cbd8e5; background: #101923; border: 1px solid #405469; border-radius: 6px; font: 13px/1.55 Inter, sans-serif; letter-spacing: normal; }
+.aviation-news::backdrop { background: #050a10a8; }
+.aviation-news header { position: sticky; top: 0; background: #101923; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.aviation-news h2 { font-size: 17px; margin: 0; }
+.aviation-news h3 { font-size: 13px; margin: 0 0 8px; color: #e1eaf5; }
+.aviation-news section { padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.aviation-news article { display: grid; gap: 4px; padding: 8px 0; margin-bottom: 6px; border-bottom: 1px solid var(--border); }
+.aviation-news a { color: #b3d4f9; }
+.aviation-news :is(small,p) { color: #aabdd0; }
+.aviation-news p { margin: 7px 0; }
+@media (max-width: 640px) {
+  .aviation-alert span, .environment-bar:has(.aviation-alert) > div:first-child, .environment-detail { display: none; }
+}
