@@ -39,11 +39,12 @@ test('air filters combine class, altitude, airline and aircraft type without tre
   const entities = normalizeAdsb({ now, ac: [
     { hex: 'mil', lat: 1, lon: 2, alt_baro: 35000, t: 'C17', flight: 'RCH1', seen_pos: 0, dbFlags: 1 },
     { hex: 'civil', lat: 1, lon: 2, alt_baro: 35000, t: 'A320', flight: 'TST1', seen_pos: 0, dbFlags: 0 },
+    { hex: 'abc124', lat: 1, lon: 2, r: 'N123AB', t: 'A320', seen_pos: 0 },
     { hex: 'unknown', lat: 1, lon: 2, alt_baro: null, t: 'A320', flight: 'TST2', seen_pos: 0 },
   ] }, now);
   assert.deepEqual(filterAircraft(entities, { classification: 'military', altitude: 'high', airline: 'all', aircraft: 'C17' }).map(entity => entity.id), ['adsblol-mil']);
-  assert.deepEqual(filterAircraft(entities, { classification: 'civilian', altitude: 'all', airline: 'all', aircraft: 'all' }).map(entity => entity.id), ['adsblol-civil']);
-  assert.equal(filterAircraft(entities, { classification: 'all', altitude: 'all', airline: 'all', aircraft: 'all' }).length, 3);
+  assert.deepEqual(filterAircraft(entities, { classification: 'civilian', altitude: 'all', airline: 'all', aircraft: 'all' }).map(entity => entity.id), ['adsblol-civil', 'adsblol-abc124']);
+  assert.equal(filterAircraft(entities, { classification: 'all', altitude: 'all', airline: 'all', aircraft: 'all' }).length, 4);
 });
 test('air feed falls back on primary failure, retains delayed observations, and respects next poll', async () => {
   let calls = 0;
@@ -89,21 +90,33 @@ test('adsb.lol requests identify ARGUS with public contact URLs', async () => {
     assert.match(userAgent, /github\.com\/Dioscurias\/Argus/);
   } finally { globalThis.fetch = original; }
 });
-test('global adsb.lol requests grouped aircraft types and normalizes positioned aircraft', async () => {
+test('global adsb.lol combines grouped types with the dedicated military feed', async () => {
   const original = globalThis.fetch;
-  let requested = '';
+  const requested: string[] = [];
   globalThis.fetch = async (input) => {
-    requested = String(input);
-    return Response.json({ now, ac: [{ hex: 'abc123', lat: 48, lon: 9, alt_baro: 30000, gs: 450, track: 90, seen_pos: 1, t: 'A320', dbFlags: 1 }] });
+    const url = String(input);
+    requested.push(url);
+    const position = { lat: 48, lon: 9, alt_baro: 30000, gs: 450, track: 90 };
+    return Response.json({ now, ac: url.endsWith('/v2/mil') ? [
+      { ...position, hex: 'abc123', t: 'A320', seen_pos: 4, dbFlags: 1 },
+      { ...position, hex: 'abc125', t: 'TEX2', seen_pos: 2, dbFlags: 1 },
+    ] : [
+      { ...position, hex: 'abc123', t: 'A320', r: 'N123AB', seen_pos: 1 },
+      { ...position, hex: 'abc126', t: 'A321', r: 'N234AB', seen_pos: 1 },
+    ] });
   };
   try {
-    const records = await new AdsbLolGlobalProvider().poll(now);
-    assert.match(requested, /\/v2\/type\//);
-    assert.match(requested, /A320/);
-    assert.equal(records.length, 1);
-    assert.equal(records[0].source, 'adsblol');
-    assert.equal(records[0].meta.military, true);
-    assert.equal('raw' in records[0].meta, false);
+    const provider = new AdsbLolGlobalProvider();
+    const records = await provider.poll(now);
+    assert.match(requested[0], /\/v2\/type\/.*A320/);
+    assert.match(requested[1], /\/v2\/mil$/);
+    assert.deepEqual(records.map(entity => [entity.id, entity.meta.military]), [
+      ['adsblol-abc123', true], ['adsblol-abc126', false], ['adsblol-abc125', true],
+    ]);
+    assert.equal(records[0].ts, now - 1000);
+    assert.ok(records.every(entity => entity.source === 'adsblol' && !('raw' in entity.meta)));
+    assert.equal((await provider.poll(now + 90000)).length, 3);
+    assert.equal(requested.filter(url => url.endsWith('/v2/mil')).length, 1);
   } finally { globalThis.fetch = original; }
 });
 test('OpenSky falls back to quota-safe anonymous global states when OAuth transport fails', async () => {

@@ -2,6 +2,7 @@ import type { Entity } from '../../shared/schema.js';
 
 const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' ? value as Record<string, unknown> : {};
 const numeric = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+const integerFlags = (value: unknown): value is number => numeric(value) && Number.isSafeInteger(value) && value >= 0;
 const label = (value: unknown, fallback = 'Unknown') => typeof value === 'string' && value.trim() ? value.trim() : fallback;
 function date(value: unknown): number | null {
   const time = numeric(value) ? value < 1e12 ? value * 1000 : value : typeof value === 'string' ? Date.parse(value) : NaN;
@@ -50,7 +51,10 @@ export function normalizeAdsb(payload: unknown, now: number, includeRaw = true):
   const observedAt = date(data.now) ?? now;
   const entities = compact(data.ac.map(raw => {
     const r = record(raw);
-    return normalize('adsblol', { id: r.hex, lat: r.lat, lon: r.lon, heading: r.track, speed: r.gs, altitude: r.alt_baro === 'ground' ? 0 : r.alt_baro, ts: numeric(r.seen_pos) ? observedAt - r.seen_pos * 1000 : null, callsign: r.flight, aircraft: r.t, onGround: r.alt_baro === 'ground', military: numeric(r.dbFlags) ? (r.dbFlags & 1) === 1 : undefined }, raw, now);
+    // readsb omits zero flags. Registry registration/type indicate a database match.
+    const military = integerFlags(r.dbFlags) ? Boolean(r.dbFlags & 1)
+      : r.dbFlags === undefined && /^[a-f0-9]{6}$/i.test(label(r.hex, '')) && label(r.r, '') && label(r.t, '') ? false : undefined;
+    return normalize('adsblol', { id: r.hex, lat: r.lat, lon: r.lon, heading: r.track, speed: r.gs, altitude: r.alt_baro === 'ground' ? 0 : r.alt_baro, ts: numeric(r.seen_pos) ? observedAt - r.seen_pos * 1000 : null, callsign: r.flight, aircraft: r.t, onGround: r.alt_baro === 'ground', military }, raw, now);
   }));
   if (!includeRaw) for (const entity of entities) delete entity.meta.raw;
   return entities;

@@ -34,7 +34,7 @@ export function App() {
     <CommandBar projection={projection} onProjection={setProjection} cursor={cursor} now={feed.now} globalCoverage={globalCoverage} onLayers={() => setMobilePanel(value => value === 'layers' ? null : 'layers')} onInspector={() => setMobilePanel(value => value === 'inspector' ? null : 'inspector')}/>
     <div className="environment-bar"><div><span className="environment-marker"/><span>AIR TRAFFIC</span><span className="environment-divider">/</span><span className="environment-detail">{globalCoverage ? 'Global coverage' : '250 NM around map center'} · motion estimated between updates</span></div><AviationBrief now={feed.now}/></div>
     <main className="workspace">
-      <LayerPanel stack={stack} dispatch={dispatch} snapshot={feed.snapshot} connection={feed.state}/>
+      <LayerPanel stack={stack} dispatch={dispatch} snapshot={feed.snapshot} connection={feed.state} onClassChange={() => selection.select(null)}/>
       <div className="map-workspace"><MapViewport projection={projection} stack={stack} aircraft={visibleAircraft} onCursor={setCursor} onFps={setFps} onRegion={setRegion} globalCoverage={globalCoverage} selected={selection.selected} onSelect={selectAircraft} track={selection.track} route={selection.details?.route?.airports ?? emptyRoute}/></div>
       <Inspector snapshot={feed.snapshot} connection={feed.state} retry={feed.retry} region={region} globalCoverage={globalCoverage} selection={selection} onClear={() => selectAircraft(null)}/>
     </main>
