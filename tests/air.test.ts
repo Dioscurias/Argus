@@ -28,7 +28,7 @@ test('OpenSky converts units, rejects missing locations, and does not invent rou
   assert.equal(records[0].meta.airline, 'Unknown');
 });
 test('adsb position age uses seen_pos and excludes non-aircraft records without coordinates', () => {
-  const records = normalizeAdsb({ now, ac: [{ hex: 'abc', lat: 40, lon: -75, alt_baro: 'ground', gs: 0, track: 0, seen_pos: 90, flight: 'TST2', t: 'B738', dbFlags: 1 }, { hex: 'bad' }] }, now);
+  const records = normalizeAdsb({ now, ac: [{ hex: 'abc', lat: 40, lon: -75, alt_baro: 'ground', gs: 0, track: 0, seen_pos: 90, flight: 'TST2', t: 'B738', dbFlags: 1 }, { hex: 'bad' }, { hex: 'abc129', lat: 40, lon: -75, t: 'TWR' }] }, now);
   assert.equal(records.length, 1);
   assert.equal(records[0].provenance, 'DELAYED');
   assert.equal(records[0].altitude, 0);
@@ -109,6 +109,9 @@ test('global adsb.lol combines grouped types with the dedicated military feed', 
     const provider = new AdsbLolGlobalProvider();
     const records = await provider.poll(now);
     assert.match(requested[0], /\/v2\/type\/.*A320/);
+    const types = new URL(requested[0]).pathname.split('/').at(-1)?.split(',') ?? [];
+    for (const type of ['E75L', 'P28A', 'EC35', 'R44', 'GLEX']) assert.ok(types.includes(type), type);
+    assert.ok(!types.includes('TWR'));
     assert.match(requested[1], /\/v2\/mil$/);
     assert.deepEqual(records.map(entity => [entity.id, entity.meta.military]), [
       ['adsblol-abc123', true], ['adsblol-abc126', false], ['adsblol-abc125', true],
@@ -117,6 +120,44 @@ test('global adsb.lol combines grouped types with the dedicated military feed', 
     assert.ok(records.every(entity => entity.source === 'adsblol' && !('raw' in entity.meta)));
     assert.equal((await provider.poll(now + 90000)).length, 3);
     assert.equal(requested.filter(url => url.endsWith('/v2/mil')).length, 1);
+  } finally { globalThis.fetch = original; }
+});
+test('a bulk ADS-B key enables an unrestricted snapshot, including records without a known type', async () => {
+  const original = globalThis.fetch;
+  const requested: string[] = [];
+  globalThis.fetch = async (input, init) => {
+    requested.push(String(input));
+    assert.equal(new Headers(init?.headers).get('x-api-key'), 'bulk-key');
+    const position = { lat: 48, lon: 9, seen_pos: 1 };
+    return Response.json({ now, aircraft: [
+      { ...position, hex: 'abc127' },
+      { ...position, hex: 'abc128', dbFlags: 1 },
+    ] });
+  };
+  try {
+    const records = await new AdsbLolGlobalProvider('bulk-key').poll(now);
+    assert.deepEqual(requested, ['https://api.adsb.lol/v2?all']);
+    assert.deepEqual(records.map(entity => [entity.id, entity.meta.military]), [
+      ['adsblol-abc127', undefined], ['adsblol-abc128', true],
+    ]);
+  } finally { globalThis.fetch = original; }
+});
+test('a denied bulk ADS-B snapshot falls back to both public feeds without sending the bulk key', async () => {
+  const original = globalThis.fetch;
+  const requested: string[] = [];
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    requested.push(url);
+    if (url.endsWith('?all')) return new Response('', { status: 403 });
+    assert.equal(new Headers(init?.headers).has('x-api-key'), false);
+    return Response.json({ now, ac: [{ hex: url.endsWith('/mil') ? 'abc128' : 'abc127', lat: 48, lon: 9, seen_pos: 0 }] });
+  };
+  try {
+    const provider = new AdsbLolGlobalProvider('bulk-key');
+    const records = await provider.poll(now);
+    assert.deepEqual(records.map(entity => entity.meta.military), [undefined, true]);
+    await provider.poll(now + 90000);
+    assert.equal(requested.filter(url => url.endsWith('?all')).length, 1);
   } finally { globalThis.fetch = original; }
 });
 test('OpenSky falls back to quota-safe anonymous global states when OAuth transport fails', async () => {

@@ -2,7 +2,7 @@
 
 Layered global traffic intelligence. **Phase 1: air traffic and airports.**
 
-A runnable Vite + React + TypeScript application with Blueprint's dark UI, native MapLibre GL aircraft layers, and a Node/Express backend. Production displays worldwide adsb.lol observations for a configured set of common aircraft types, with a regional adsb.lol fallback. Coverage depends on receivers and the configured types; this is not every aircraft worldwide.
+A runnable Vite + React + TypeScript application with Blueprint's dark UI, native MapLibre GL aircraft layers, and a Node/Express backend. Production displays worldwide adsb.lol observations for a configured set of aircraft types, plus the dedicated military feed, with a regional adsb.lol fallback. Coverage depends on receivers, usable positions and the public type list.
 
 ## Run
 
@@ -28,7 +28,7 @@ Open **http://127.0.0.1:3001**. Run these commands from the project root. The se
 
 ## Vercel deployment
 
-`vercel.json` builds the Vite client and deploys `api/server.ts` as the HTTP backend. Production requests the adsb.lol global type snapshot every 90 seconds and honors provider retry limits. The server retains observations as `DELAYED` on transient failures and never substitutes modeled aircraft in live mode. Aircraft details use a separate cached, on-demand hexdb.io lookup.
+`vercel.json` builds the Vite client and deploys `api/server.ts` as the HTTP backend. Production requests the expanded adsb.lol global type feed and supplements it with the dedicated military endpoint. Set the server-only `ADSB_BULK_API_KEY` with [whole-world bulk access](https://www.adsb.lol/sponsor) to use the unfiltered positioned snapshot. If bulk access fails, ARGUS backs off that endpoint and uses the public feeds. The server retains observations as `DELAYED` on transient failures and never substitutes modeled aircraft in live mode. Aircraft details use a separate cached, on-demand hexdb.io lookup.
 
 ## What Phase 1 includes
 

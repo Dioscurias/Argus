@@ -2,6 +2,7 @@ import type { Entity } from '../../shared/schema.js';
 
 const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' ? value as Record<string, unknown> : {};
 const numeric = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+const adsbGroundObjects = new Set(['GND', 'SERV', 'TWR']);
 const integerFlags = (value: unknown): value is number => numeric(value) && Number.isSafeInteger(value) && value >= 0;
 const label = (value: unknown, fallback = 'Unknown') => typeof value === 'string' && value.trim() ? value.trim() : fallback;
 function date(value: unknown): number | null {
@@ -51,6 +52,7 @@ export function normalizeAdsb(payload: unknown, now: number, includeRaw = true):
   const observedAt = date(data.now) ?? now;
   const entities = compact(data.ac.map(raw => {
     const r = record(raw);
+    if (typeof r.t === 'string' && adsbGroundObjects.has(r.t)) return null;
     // readsb omits zero flags. Registry registration/type indicate a database match.
     const military = integerFlags(r.dbFlags) ? Boolean(r.dbFlags & 1)
       : r.dbFlags === undefined && /^[a-f0-9]{6}$/i.test(label(r.hex, '')) && label(r.r, '') && label(r.t, '') ? false : undefined;

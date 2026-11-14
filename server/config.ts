@@ -7,7 +7,7 @@ export interface ServerConfig {
   pollIntervalMs: number;
   cacheTtlMs: number;
   clientOrigin?: string;
-  air: { provider: 'fr24' | 'opensky' | 'adsblol' | 'adsblol-global'; fallback: 'opensky' | 'adsblol' | 'none'; bounds: string; point: string; intervalMs: number; fr24Key: string; clientId: string; clientSecret: string; proxyUrl: string; proxyToken: string };
+  air: { provider: 'fr24' | 'opensky' | 'adsblol' | 'adsblol-global'; fallback: 'opensky' | 'adsblol' | 'none'; bounds: string; point: string; intervalMs: number; fr24Key: string; adsbBulkKey: string; clientId: string; clientSecret: string; proxyUrl: string; proxyToken: string };
 }
 
 export function readConfig(env: Record<string, string | undefined>): ServerConfig {
@@ -35,6 +35,6 @@ export function readConfig(env: Record<string, string | undefined>): ServerConfi
     pollIntervalMs: integer('POLL_INTERVAL_MS', 2000, 500, 60000),
     cacheTtlMs: integer('CACHE_TTL_MS', 1500, 100, 60000),
     clientOrigin: env.CLIENT_ORIGIN || undefined,
-    air: { provider: airProvider as ServerConfig['air']['provider'], fallback: fallback as ServerConfig['air']['fallback'], bounds, point, intervalMs: integer('AIR_POLL_INTERVAL_MS', 90000, 60000, 3600000), fr24Key: env.FR24_API_KEY || '', clientId: env.OPENSKY_CLIENT_ID || '', clientSecret: env.OPENSKY_CLIENT_SECRET || '', proxyUrl: env.OPENSKY_PROXY_URL || '', proxyToken: env.OPENSKY_PROXY_TOKEN || '' },
+    air: { provider: airProvider as ServerConfig['air']['provider'], fallback: fallback as ServerConfig['air']['fallback'], bounds, point, intervalMs: integer('AIR_POLL_INTERVAL_MS', 90000, 60000, 3600000), fr24Key: env.FR24_API_KEY || '', adsbBulkKey: env.ADSB_BULK_API_KEY?.trim() || '', clientId: env.OPENSKY_CLIENT_ID || '', clientSecret: env.OPENSKY_CLIENT_SECRET || '', proxyUrl: env.OPENSKY_PROXY_URL || '', proxyToken: env.OPENSKY_PROXY_TOKEN || '' },
   };
 }
