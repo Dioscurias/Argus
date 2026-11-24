@@ -32,7 +32,7 @@ Open **http://127.0.0.1:3001**. Run these commands from the project root. The se
 
 ## What Phase 1 includes
 
-- The Manta look (black canvas, white type, hairline rules; colour only for data and status), Inter Tight display and UI type, IBM Plex Mono labels, Blueprint controls restyled to square hairline buttons, command bar, layer stack, aircraft inspector, and status bar.
+- The Manta look (black canvas, white type, hairline rules; one blue accent for live data and active states, status colours only for health), Inter Tight display and UI type, IBM Plex Mono labels, Blueprint controls restyled to square hairline buttons, command bar, layer stack, aircraft inspector, and status bar.
 - A pan/zoom reference map with 2D Mercator and globe projections, north reset, and world-view reset. Natural Earth country geometry, OurAirports large/medium airport points, and all fonts are bundled locally.
 - Native aircraft symbols and flight paths follow both projections, including globe horizon clipping. Hover for a summary; click to isolate a plane and see its registration, operator/owner, photo, reference airport route, and observed session trail. Escape or **Show all aircraft** restores traffic. Altitude and aircraft-type filters narrow the unselected view.
 - The Aircraft class filter adds All aircraft, Civilian, and Military to the existing altitude and aircraft-type filters. ARGUS uses the ADS-B database flags and the provider’s military feed. When readsb omits a zero flag, ADS-B records with a database registration and type count as civilian. Records without classification evidence appear under All aircraft.

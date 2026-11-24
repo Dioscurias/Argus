@@ -21,7 +21,7 @@ async function aircraftPixelCenter() {
     // Skip the HTML overlays (title, tool rail, nav, phase note) that the element screenshot also captures.
     for (let y = 160; y < image.height - 130; y++) for (let x = 55; x < image.width - 55; x++) {
       const i = (y * image.width + x) * 4;
-      if (pixels[i] > 225 && pixels[i + 1] > 225 && pixels[i + 2] > 225) { xSum += x; total++; }
+      if (pixels[i] < 105 && pixels[i + 1] > 115 && pixels[i + 1] < 175 && pixels[i + 2] > 210) { xSum += x; total++; }
     }
     return { x: xSum / total, total };
   }, png);

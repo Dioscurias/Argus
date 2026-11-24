@@ -1,5 +1,5 @@
 /* ARGUS in the Manta look: black canvas, white type, hairline rules.
-   Colour is reserved for data (map) and status lights. Fonts load from index.html. */
+   One accent (--accent) marks live data and active states; red/amber/green stay for status only. */
 :root {
   color-scheme: dark;
   --bg: #000000;
@@ -10,6 +10,8 @@
   --faint: rgba(255, 255, 255, 0.4);
   --line: rgba(255, 255, 255, 0.14);
   --tint: rgba(255, 255, 255, 0.06);
+  --accent: #4c90f0;
+  --accent-tint: rgba(76, 144, 240, 0.14);
   --sans: "Inter Tight", Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   /* status only */
@@ -30,13 +32,13 @@ body, body.bp6-dark { min-width: 360px; font: 400 13px/1.5 var(--sans); backgrou
 button, input, select { font: inherit; }
 button { cursor: pointer; color: inherit; }
 button:disabled { cursor: not-allowed; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid #fff !important; outline-offset: 2px; }
-/* Blueprint paints a blue ring on any :focus; keep rings for keyboard only, in white. */
-.bp6-dark :focus { outline-color: #fff; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent) !important; outline-offset: 2px; }
+/* Blueprint paints its own ring on any :focus; keep rings for keyboard only, in the accent. */
+.bp6-dark :focus { outline-color: var(--accent); }
 .bp6-dark :focus:not(:focus-visible) { outline: none; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; }
-::selection { background: #fff; color: #000; }
+::selection { background: var(--accent); color: #000; }
 svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .muted { color: var(--faint); }
@@ -47,10 +49,10 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
    :where() keeps these at low specificity so component rules below can override them. */
 :where(.bp6-dark) .bp6-button { border-radius: 0 !important; box-shadow: none !important; font-family: var(--sans); }
 :where(.bp6-dark) .bp6-button:where(:not(.bp6-minimal):not([class*=bp6-intent-])) { background: transparent !important; border: 1px solid #fff; color: #fff !important; font-weight: 600; letter-spacing: -0.01em; }
-:where(.bp6-dark) .bp6-button:where(:not(.bp6-minimal):not([class*=bp6-intent-]):not(:disabled)):hover { background: #fff !important; color: #000 !important; }
+:where(.bp6-dark) .bp6-button:where(:not(.bp6-minimal):not([class*=bp6-intent-]):not(:disabled)):hover { background: var(--accent) !important; border-color: var(--accent); color: #000 !important; }
 :where(.bp6-dark) .bp6-button.bp6-minimal { background: transparent !important; color: var(--subtle) !important; border: 1px solid transparent; }
-:where(.bp6-dark) .bp6-button.bp6-minimal:where(:not(:disabled)):hover { color: #fff !important; border-color: #fff; }
-:where(.bp6-dark) .bp6-button.bp6-minimal.bp6-active { color: #fff !important; background: var(--tint) !important; }
+:where(.bp6-dark) .bp6-button.bp6-minimal:where(:not(:disabled)):hover { color: var(--accent) !important; border-color: var(--accent); }
+:where(.bp6-dark) .bp6-button.bp6-minimal.bp6-active { color: var(--accent) !important; background: var(--accent-tint) !important; }
 :where(.bp6-dark) .bp6-button:where(:disabled, .bp6-disabled) { color: var(--faint) !important; border-color: var(--line); background: transparent !important; cursor: not-allowed; }
 
 .health-dot { display: inline-block; width: 6px; height: 6px; min-width: 6px; border-radius: 50%; background: var(--faint); }
@@ -119,7 +121,7 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 }
 .projection-switch .bp6-button .bp6-button-text { display: flex; align-items: center; gap: 5px; }
 .projection-switch .bp6-button:hover { color: var(--ink) !important; }
-.projection-switch .bp6-button.bp6-active { color: #000 !important; background: #fff !important; }
+.projection-switch .bp6-button.bp6-active { color: #000 !important; background: var(--accent) !important; }
 .mobile-panel-toggle { display: none !important; }
 .environment-bar {
   display: flex;
@@ -134,7 +136,7 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
   color: var(--faint);
 }
 .environment-bar > div { display: flex; align-items: center; gap: 9px; }
-.environment-marker { width: 6px; height: 6px; background: var(--ink); border-radius: 50%; }
+.environment-marker { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
 .environment-divider { color: var(--faint); padding: 0 3px; }
 .environment-detail { color: var(--subtle); letter-spacing: 0.09em; }
 .environment-right { display: flex; align-items: center; gap: 8px; color: var(--faint); }
@@ -172,8 +174,8 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .layer-toolbar .bp6-button { min-width: 22px; min-height: 22px; }
 .layer-list { flex: 1; min-height: 0; overflow-y: auto; }
 .layer-item { border-bottom: 1px solid var(--line); border-left: 2px solid transparent; transition: background 0.2s ease; }
-.layer-item.expanded { background: var(--tint); border-left-color: #fff; }
-.layer-item.drag-over { box-shadow: inset 0 2px 0 #fff; }
+.layer-item.expanded { background: var(--accent-tint); border-left-color: var(--accent); }
+.layer-item.drag-over { box-shadow: inset 0 2px 0 var(--accent); }
 .layer-row { min-height: 34px; display: flex; align-items: center; padding: 6px 10px 0 8px; gap: 5px; }
 .drag-handle { width: 12px; padding: 0; background: transparent; border: none; color: var(--faint); font-size: 16px; cursor: grab; }
 .drag-handle:active { cursor: grabbing; }
@@ -199,7 +201,7 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .layer-hidden .layer-name .icon { opacity: 0.6; }
 .layer-row > .health-dot { margin: 0 1px 0 3px; }
 .solo-button { font: 400 10px var(--mono) !important; min-width: 22px !important; min-height: 22px !important; padding: 0 !important; }
-.solo-button.is-solo { background: #fff !important; color: #000 !important; border-color: #fff !important; }
+.solo-button.is-solo { background: var(--accent) !important; color: #000 !important; border-color: var(--accent) !important; }
 .solo-button.is-solo:hover { color: #000 !important; }
 .layer-meta { padding: 0 14px 10px 55px; display: flex; gap: 8px; align-items: center; height: 27px; }
 .layer-meta > .mono { color: var(--faint); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; }
@@ -212,8 +214,8 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .layer-details .bp6-slider { min-width: 0; margin: 0 0 2px; height: 19px; }
 .layer-details .bp6-slider-track, .layer-details .bp6-slider-progress { height: 2px; top: 4px; border-radius: 0; }
 .bp6-dark .layer-details .bp6-slider-progress { background: var(--line); }
-.bp6-dark .layer-details .bp6-slider-progress.bp6-intent-primary { background: #fff; }
-.layer-details .bp6-slider-handle { top: 0; width: 8px; height: 10px; min-width: 0; border-radius: 0; border: none; background: #fff !important; box-shadow: none !important; }
+.bp6-dark .layer-details .bp6-slider-progress.bp6-intent-primary { background: var(--accent); }
+.layer-details .bp6-slider-handle { top: 0; width: 8px; height: 10px; min-width: 0; border-radius: 0; border: none; background: var(--accent) !important; box-shadow: none !important; }
 .layer-details .bp6-slider-label { display: none; }
 .layer-description { color: var(--subtle); font-size: 12px; line-height: 1.6; margin: 0 0 10px; }
 .layer-filters { padding-top: 10px; border-top: 1px solid var(--line); }
@@ -260,7 +262,7 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
   background: var(--surface-overlay) !important;
   border: 1px solid var(--line);
 }
-.bp6-dark .map-toolrail .bp6-button:hover, .bp6-dark .map-navigation .bp6-button:hover, .bp6-dark .map-toolrail .bp6-button.bp6-active { background: #fff !important; color: #000 !important; border-color: #fff; }
+.bp6-dark .map-toolrail .bp6-button:hover, .bp6-dark .map-navigation .bp6-button:hover, .bp6-dark .map-toolrail .bp6-button.bp6-active { background: var(--accent) !important; color: #000 !important; border-color: var(--accent); }
 .bp6-dark .map-toolrail .bp6-button:disabled { color: var(--faint) !important; }
 .tool-separator { height: 1px; background: var(--line); margin: 3px; }
 .map-navigation { position: absolute; bottom: 99px; right: 19px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -288,7 +290,7 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
   border-radius: 22px;
   pointer-events: none;
 }
-.phase-index { color: var(--faint); border-right: 1px solid var(--line); padding-right: 14px; display: flex; }
+.phase-index { color: var(--accent); border-right: 1px solid var(--line); padding-right: 14px; display: flex; }
 .map-phase-note > div { display: flex; flex-direction: column; gap: 5px; }
 .map-phase-note strong { font: 600 12px var(--sans); text-transform: uppercase; letter-spacing: -0.01em; color: var(--ink); }
 .map-phase-note div > span { color: var(--subtle); font-size: 12px; line-height: 1.5; }
@@ -327,14 +329,14 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .inspector-id { font: 400 10px var(--mono); letter-spacing: 0.09em; color: var(--faint); }
 .aircraft-inspector { padding: 20px; border-bottom: 1px solid var(--line); }
 .selected-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.selected-title h2 { margin: 0; font: 600 26px/1 var(--sans); text-transform: uppercase; letter-spacing: -0.035em; color: var(--ink); }
+.selected-title h2 { margin: 0; font: 600 26px/1 var(--sans); text-transform: uppercase; letter-spacing: -0.035em; color: var(--accent); }
 .aircraft-model { color: var(--subtle); font-size: 13px; line-height: 1.5; margin: 10px 0 14px; }
 .aircraft-photo { margin-top: 16px; background: var(--bg); min-height: 80px; border: 1px solid var(--line); border-radius: 0; overflow: hidden; }
 .aircraft-photo img { width: 100%; height: auto; max-height: 190px; object-fit: contain; display: block; }
 .aircraft-photo p { padding: 18px 12px; font-size: 12px; color: var(--subtle); line-height: 1.6; }
 .photo-credit { display: block; padding: 6px; font: 400 10px var(--mono); color: var(--faint); }
 .aircraft-inspector a { color: var(--subtle); }
-.aircraft-inspector a:hover { color: var(--ink); }
+.aircraft-inspector a:hover { color: var(--accent); }
 .aircraft-measurements { margin: 14px 0 18px; }
 .aircraft-measurements > div { display: flex; justify-content: space-between; gap: 12px; margin: 0; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .aircraft-measurements dt { font: 400 10px var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); padding-top: 3px; }
@@ -349,9 +351,9 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .selection-controls > span { color: var(--ink); font: 400 11px var(--mono); letter-spacing: 0.09em; text-transform: uppercase; }
 .selection-controls > div { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--subtle); width: 100%; }
 .trail-key, .route-key, .estimate-key { display: inline-block; width: 18px; flex-shrink: 0; }
-.trail-key { border-top: 2px solid #fff; }
-.route-key { border-top: 2px dashed rgba(255, 255, 255, 0.55); margin-left: 5px; }
-.estimate-key { border-top: 2px dotted #fff; }
+.trail-key { border-top: 2px solid var(--accent); }
+.route-key { border-top: 2px dashed var(--accent); opacity: 0.7; margin-left: 5px; }
+.estimate-key { border-top: 2px dotted var(--accent); }
 .motion-status { margin-left: auto; color: var(--faint); }
 .map-viewport[data-selected-aircraft]:not([data-selected-aircraft=""]) .map-toolrail { display: none; }
 @media (max-width: 800px) {
@@ -365,8 +367,8 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
   .map-viewport[data-selected-aircraft]:not([data-selected-aircraft=""]) .map-navigation { bottom: 45px; }
 }
 .inspector-empty { padding: 28px 24px 23px; text-align: center; border-bottom: 1px solid var(--line); }
-.selection-symbol { width: 69px; height: 63px; display: flex; align-items: center; justify-content: center; margin: 0 auto 19px; position: relative; color: var(--faint); }
-.symbol-corner { position: absolute; width: 9px; height: 9px; border: solid var(--faint); }
+.selection-symbol { width: 69px; height: 63px; display: flex; align-items: center; justify-content: center; margin: 0 auto 19px; position: relative; color: var(--accent); }
+.symbol-corner { position: absolute; width: 9px; height: 9px; border: solid var(--accent); }
 .symbol-corner.top-left { top: 0; left: 0; border-width: 1px 0 0 1px; }
 .symbol-corner.bottom-right { bottom: 0; right: 0; border-width: 0 1px 1px 0; }
 .inspector-empty h2 { font: 600 26px/1 var(--sans); text-transform: uppercase; letter-spacing: -0.035em; color: var(--ink); margin: 0 0 14px; }
@@ -380,7 +382,7 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .feed-cards { display: flex; flex-direction: column; gap: 8px; }
 .feed-card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px 12px; }
 .feed-card-title { display: flex; align-items: center; gap: 8px; font: 600 12px var(--sans); text-transform: uppercase; letter-spacing: -0.01em; }
-.feed-count { margin-left: auto; font: 600 24px/1 var(--sans); letter-spacing: -0.035em; }
+.feed-count { margin-left: auto; font: 600 24px/1 var(--sans); letter-spacing: -0.035em; color: var(--accent); }
 .feed-card-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font: 400 10px var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); }
 .stream-state { display: flex; gap: 8px; align-items: center; min-height: 34px; color: var(--subtle); font-size: 11px; }
 .stream-state .bp6-button { min-height: 20px; padding: 0; margin-left: auto; }
@@ -408,7 +410,7 @@ svg.icon { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .status-feeds .health-dot { width: 5px; height: 5px; min-width: 5px; }
 .status-divider { height: 11px; width: 1px; background: var(--line); }
 .rendered-count { display: flex; align-items: center; gap: 7px; }
-.rendered-count strong { font-weight: 400; color: var(--ink); letter-spacing: 0; }
+.rendered-count strong { font-weight: 400; color: var(--accent); letter-spacing: 0; }
 .status-fps { margin-left: 4px; color: var(--faint); }
 .build-status { border-left: 1px solid var(--line); padding-left: 15px; color: var(--faint); }
 
@@ -497,7 +499,7 @@ a.aviation-alert:hover { background: var(--bad); color: #000; }
 a.aviation-alert.uncertain:hover { background: var(--warn); color: #000; }
 .aviation-alert:hover span { color: #000; }
 .aviation-news-button, .aviation-news button { font: 600 11px/1 var(--sans); text-transform: uppercase; letter-spacing: -0.01em; cursor: pointer; color: var(--ink); background: transparent; border: 1px solid #fff; border-radius: 0; padding: 0 12px; height: 19px; }
-.aviation-news-button:hover, .aviation-news button:hover { background: #fff; color: #000; }
+.aviation-news-button:hover, .aviation-news button:hover { background: var(--accent); border-color: var(--accent); color: #000; }
 .aviation-news { width: min(520px, calc(100vw - 24px)); max-height: min(78dvh, 720px); padding: 0; overflow: auto; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 20px; font: 400 13px/1.55 var(--sans); letter-spacing: normal; text-transform: none; }
 .aviation-news::backdrop { background: rgba(0, 0, 0, 0.72); }
 .aviation-news header { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 20px; background: var(--surface); border-bottom: 1px solid var(--line); }
@@ -510,7 +512,7 @@ a.aviation-alert.uncertain:hover { background: var(--warn); color: #000; }
 .aviation-news article { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .aviation-news article strong { font: 600 12px/1.4 var(--sans); text-transform: uppercase; letter-spacing: -0.01em; }
 .aviation-news a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
-.aviation-news a:hover { text-decoration-color: #fff; }
+.aviation-news a:hover { color: var(--accent); text-decoration-color: var(--accent); }
 .aviation-news small { font: 400 10px/1.4 var(--mono); text-transform: uppercase; letter-spacing: 0.09em; color: var(--faint); }
 .aviation-news p { margin: 8px 0; color: var(--subtle); }
 @media (max-width: 640px) { .aviation-alert span, .environment-bar:has(.aviation-alert) > div:first-child, .environment-detail { display: none; } }
