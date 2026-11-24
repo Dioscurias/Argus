@@ -6,7 +6,7 @@ import type { AircraftPosition } from './aircraft-motion';
 
 export function addAircraftLayers(map: Map) {
   // Native symbols use MapLibre's globe projection and horizon clipping.
-  for (const [name, color] of [['aircraft-blue', '#4c90f0'], ['aircraft-muted', '#8498b0'], ['aircraft-selected', '#65f3cd']]) {
+  for (const [name, color] of [['aircraft-live', '#ffffff'], ['aircraft-muted', '#8c8c8c'], ['aircraft-selected', '#ffffff']]) {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = 64;
     const context = canvas.getContext('2d')!;
@@ -15,13 +15,13 @@ export function addAircraftLayers(map: Map) {
     map.addImage(name, context.getImageData(0, 0, 64, 64));
   }
   for (const id of ['aircraft', 'flight-trail', 'flight-estimate', 'flight-route', 'route-airports']) map.addSource(id, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-  map.addLayer({ id: 'flight-route', type: 'line', source: 'flight-route', paint: { 'line-color': '#d8b56d', 'line-width': 2, 'line-dasharray': [3, 3] } });
-  map.addLayer({ id: 'flight-trail', type: 'line', source: 'flight-trail', paint: { 'line-color': '#65f3cd', 'line-width': 3 } });
-  map.addLayer({ id: 'flight-estimate', type: 'line', source: 'flight-estimate', paint: { 'line-color': '#65f3cd', 'line-width': 2, 'line-dasharray': [1, 2] } });
-  map.addLayer({ id: 'route-airports', type: 'circle', source: 'route-airports', paint: { 'circle-color': '#d8b56d', 'circle-radius': 5, 'circle-stroke-color': '#0a0e13', 'circle-stroke-width': 2 } });
-  map.addLayer({ id: 'selected-halo', type: 'circle', source: 'aircraft', filter: ['==', ['get', 'selected'], true], paint: { 'circle-radius': 17, 'circle-color': '#65f3cd', 'circle-opacity': 0.12, 'circle-stroke-color': '#65f3cd', 'circle-stroke-width': 1 } });
+  map.addLayer({ id: 'flight-route', type: 'line', source: 'flight-route', paint: { 'line-color': 'rgba(255,255,255,0.55)', 'line-width': 2, 'line-dasharray': [3, 3] } });
+  map.addLayer({ id: 'flight-trail', type: 'line', source: 'flight-trail', paint: { 'line-color': '#ffffff', 'line-width': 2 } });
+  map.addLayer({ id: 'flight-estimate', type: 'line', source: 'flight-estimate', paint: { 'line-color': '#ffffff', 'line-width': 2, 'line-dasharray': [1, 2] } });
+  map.addLayer({ id: 'route-airports', type: 'circle', source: 'route-airports', paint: { 'circle-color': '#ffffff', 'circle-radius': 4, 'circle-stroke-color': '#000000', 'circle-stroke-width': 2 } });
+  map.addLayer({ id: 'selected-halo', type: 'circle', source: 'aircraft', filter: ['==', ['get', 'selected'], true], paint: { 'circle-radius': 17, 'circle-color': '#ffffff', 'circle-opacity': 0.12, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1 } });
   map.addLayer({ id: 'aircraft', type: 'symbol', source: 'aircraft', layout: {
-    'icon-image': ['case', ['get', 'selected'], 'aircraft-selected', ['==', ['get', 'provenance'], 'DELAYED'], 'aircraft-muted', 'aircraft-blue'],
+    'icon-image': ['case', ['get', 'selected'], 'aircraft-selected', ['==', ['get', 'provenance'], 'DELAYED'], 'aircraft-muted', 'aircraft-live'],
     'icon-size': ['case', ['get', 'selected'], 0.4, 0.23], 'icon-rotate': ['get', 'heading'],
     'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'viewport', 'icon-allow-overlap': true, 'icon-ignore-placement': true,
   } });

@@ -19,13 +19,13 @@ export function addReferenceLabels(map: Map) {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     if (!context) return;
-    const font = `${kind === 'water' ? 400 : 500} ${kind === 'water' ? 18 : 19}px Inter, sans-serif`;
+    const font = `400 ${kind === 'water' ? 17 : 18}px "IBM Plex Mono", ui-monospace, monospace`;
     context.font = font;
-    const spacing = kind === 'water' ? 3.5 : 2;
+    const spacing = kind === 'water' ? 3.6 : 1.8;
     canvas.width = Math.ceil(context.measureText(label).width + label.length * spacing + 8);
     canvas.height = 32;
     context.font = font;
-    context.fillStyle = kind === 'water' ? '#485969' : '#6f7e8c';
+    context.fillStyle = kind === 'water' ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.42)';
     context.textBaseline = 'middle';
     let x = 4;
     for (const character of label) { context.fillText(character, x, 16); x += context.measureText(character).width + spacing; }

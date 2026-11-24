@@ -28,7 +28,7 @@ if (!live) {
   } }));
 }
 
-// Locate actual aircraft-colored pixels, then verify canvas picking with the tooltip.
+// Locate actual aircraft pixels (white symbols on the black basemap), then verify canvas picking with the tooltip.
 async function selectVisiblePlane() {
   const canvas = page.locator('canvas.maplibregl-canvas');
   const box = await canvas.boundingBox();
@@ -40,7 +40,7 @@ async function selectVisiblePlane() {
     const points = [], cells = new Set();
     for (let y = 160; y < img.height - 130; y++) for (let x = 55; x < img.width - 55; x++) {
       const i = (y * img.width + x) * 4;
-      if (pixels[i + 2] > 210 && pixels[i] < 105 && pixels[i + 1] > 115 && pixels[i + 1] < 175) {
+      if (pixels[i] > 225 && pixels[i + 1] > 225 && pixels[i + 2] > 225) {
         const key = `${Math.floor(x / 18)},${Math.floor(y / 18)}`;
         if (!cells.has(key)) { cells.add(key); points.push([x, y]); }
       }

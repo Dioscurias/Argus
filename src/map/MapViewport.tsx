@@ -100,7 +100,7 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
     let lastFrame = 0;
     const samples: number[] = [];
     map.on('load', async () => {
-      await document.fonts.ready;
+      await Promise.all([document.fonts.load('400 18px "IBM Plex Mono"'), document.fonts.ready]).catch(() => undefined);
       if (disposed) return;
       map.setProjection({ type: projectionRef.current });
       map.jumpTo({ zoom: projectionRef.current === 'globe' ? overviewZoom(map, 'globe') : 3 });

@@ -32,7 +32,7 @@ Open **http://127.0.0.1:3001**. Run these commands from the project root. The se
 
 ## What Phase 1 includes
 
-- The specified dark palette, Inter UI type, JetBrains Mono data type, Blueprint controls, command bar, layer stack, aircraft inspector, and status bar.
+- The Manta look (black canvas, white type, hairline rules; colour only for data and status), Inter Tight display and UI type, IBM Plex Mono labels, Blueprint controls restyled to square hairline buttons, command bar, layer stack, aircraft inspector, and status bar.
 - A pan/zoom reference map with 2D Mercator and globe projections, north reset, and world-view reset. Natural Earth country geometry, OurAirports large/medium airport points, and all fonts are bundled locally.
 - Native aircraft symbols and flight paths follow both projections, including globe horizon clipping. Hover for a summary; click to isolate a plane and see its registration, operator/owner, photo, reference airport route, and observed session trail. Escape or **Show all aircraft** restores traffic. Altitude and aircraft-type filters narrow the unselected view.
 - The Aircraft class filter adds All aircraft, Civilian, and Military to the existing altitude and aircraft-type filters. ARGUS uses the ADS-B database flags and the provider’s military feed. When readsb omits a zero flag, ADS-B records with a database registration and type count as civilian. Records without classification evidence appear under All aircraft.
@@ -120,7 +120,7 @@ Tests cover deterministic provenance and valid movement, cache expiration, layer
 
 - [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/) country geometry is public domain. The bundled dataset is Natural Earth 1:110m Admin 0 Countries; boundaries are cartographic reference, not a statement of sovereignty. See `public/data/README.md` for the exact upstream source.
 - [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js) uses BSD-3-Clause; [deck.gl](https://github.com/visgl/deck.gl) uses MIT; [Blueprint](https://github.com/palantir/blueprint) uses Apache-2.0. Package licenses remain in `node_modules` after installation.
-- Inter and JetBrains Mono are bundled through Fontsource under their SIL Open Font Licenses.
+- Inter Tight and IBM Plex Mono are bundled through Fontsource under their SIL Open Font Licenses.
 - [adsb.lol](https://www.adsb.lol/docs/open-data/) observations are licensed under ODbL 1.0. Its public API is free, but adsb.lol asks production consumers to contact the operator so changes do not unexpectedly break an application.
 - [hexdb.io](https://hexdb.io/) supplies aircraft metadata, photos, and callsign routes. Its documentation credits PlaneBase/PlanePlotter, Jim Mason, Steve Hibberd, ip2location, and Airport-Data. Route records can be old or unavailable; photo coverage is incomplete.
 - [OpenSky Network](https://opensky-network.org/) remains an optional adapter. Credentials must remain server-side.

@@ -18,9 +18,10 @@ async function aircraftPixelCenter() {
     const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
     const pixels = context.getImageData(0, 0, image.width, image.height).data;
     let total = 0, xSum = 0;
-    for (let y = 0; y < image.height; y++) for (let x = 0; x < image.width; x++) {
+    // Skip the HTML overlays (title, tool rail, nav, phase note) that the element screenshot also captures.
+    for (let y = 160; y < image.height - 130; y++) for (let x = 55; x < image.width - 55; x++) {
       const i = (y * image.width + x) * 4;
-      if (pixels[i] < 105 && pixels[i + 1] > 115 && pixels[i + 1] < 175 && pixels[i + 2] > 210) { xSum += x; total++; }
+      if (pixels[i] > 225 && pixels[i + 1] > 225 && pixels[i + 2] > 225) { xSum += x; total++; }
     }
     return { x: xSum / total, total };
   }, png);
