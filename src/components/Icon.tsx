@@ -13,6 +13,7 @@ const paths: Record<string, React.ReactNode> = {
   layers: <><path d="m12 3 10 5-10 5L2 8ZM2 12l10 5 10-5M2 16l10 5 10-5"/></>,
   search: <><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></>,
   globe: <><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></>,
+  spin: <><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20.5 3.5v4.6h-4.6"/><circle cx="12" cy="12" r="1.6"/></>,
   chevron: <path d="m9 5 7 7-7 7"/>,
   crosshair: <><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 1v5M12 18v5M1 12h5M18 12h5"/></>,
   plus: <path d="M12 5v14M5 12h14"/>,

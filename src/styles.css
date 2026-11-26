@@ -516,3 +516,8 @@ a.aviation-alert.uncertain:hover { background: var(--warn); color: #000; }
 .aviation-news small { font: 400 10px/1.4 var(--mono); text-transform: uppercase; letter-spacing: 0.09em; color: var(--faint); }
 .aviation-news p { margin: 8px 0; color: var(--subtle); }
 @media (max-width: 640px) { .aviation-alert span, .environment-bar:has(.aviation-alert) > div:first-child, .environment-detail { display: none; } }
+
+.spin-button .bp-icon, .spin-button svg { transform-origin: 50% 50%; }
+.spin-button.is-spinning svg { animation: argus-spin 2.4s linear infinite; }
+@keyframes argus-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin-button.is-spinning svg { animation: none; } }

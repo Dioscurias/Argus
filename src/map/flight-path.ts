@@ -71,3 +71,24 @@ export function routeLines(airports: RouteAirport[]): number[][][] {
 export function lineFeatures(lines: number[][][]): FeatureCollection<LineString> {
   return { type: 'FeatureCollection', features: lines.map(coordinates => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates } })) };
 }
+
+/** Forward estimate for a selected flight: great circle to the destination when known, otherwise straight ahead on its heading. */
+export function aheadLines(from: { lon: number; lat: number; heading: number; speed: number; onGround?: boolean }, airports: RouteAirport[]): number[][][] {
+  if (from.onGround || !Number.isFinite(from.lon) || !Number.isFinite(from.lat)) return [];
+  const destination = airports.at(-1);
+  if (destination && airports.length >= 2 && (Math.abs(destination.lat - from.lat) > 0.05 || Math.abs(destination.lon - from.lon) > 0.05)) {
+    return routeLines([{ code: '', name: '', lat: from.lat, lon: from.lon }, destination]);
+  }
+  if (!Number.isFinite(from.heading)) return [];
+  const rad = Math.PI / 180;
+  const speed = Number.isFinite(from.speed) && from.speed > 1 ? from.speed : 400;
+  const total = Math.min(speed * 1.852 * 1.5, 2500) / 6371.0088; // 90 minutes ahead, capped
+  const points: number[][] = [];
+  for (let i = 0; i <= 40; i++) {
+    const d = total * i / 40, lat = from.lat * rad, lon = from.lon * rad, b = from.heading * rad;
+    const lat2 = Math.asin(Math.sin(lat) * Math.cos(d) + Math.cos(lat) * Math.sin(d) * Math.cos(b));
+    const lon2 = lon + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(lat), Math.cos(d) - Math.sin(lat) * Math.sin(lat2));
+    points.push([((lon2 / rad + 180) % 360 + 360) % 360 - 180, lat2 / rad]);
+  }
+  return splitDateline(points);
+}

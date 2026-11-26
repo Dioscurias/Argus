@@ -1,7 +1,7 @@
 import type { Map, GeoJSONSource } from 'maplibre-gl';
 import type { Entity } from '../../shared/schema';
 import type { RouteAirport } from '../../shared/aircraft-details';
-import { lineFeatures, routeLines, splitDateline, trackLines, type TrackPoint } from './flight-path';
+import { aheadLines, lineFeatures, routeLines, splitDateline, trackLines, type TrackPoint } from './flight-path';
 import type { AircraftPosition } from './aircraft-motion';
 
 export function addAircraftLayers(map: Map) {
@@ -14,9 +14,10 @@ export function addAircraftLayers(map: Map) {
     context.fill(new Path2D('M30 3h4l3 22 23 15v5l-23-8-1 15 8 7v3l-12-4-12 4v-3l8-7-1-15-23 8v-5l23-15z'));
     map.addImage(name, context.getImageData(0, 0, 64, 64));
   }
-  for (const id of ['aircraft', 'flight-trail', 'flight-estimate', 'flight-route', 'route-airports']) map.addSource(id, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  for (const id of ['aircraft', 'flight-trail', 'flight-estimate', 'flight-ahead', 'flight-route', 'route-airports']) map.addSource(id, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({ id: 'flight-route', type: 'line', source: 'flight-route', paint: { 'line-color': 'rgba(76,144,240,0.75)', 'line-width': 2, 'line-dasharray': [3, 3] } });
   map.addLayer({ id: 'flight-trail', type: 'line', source: 'flight-trail', paint: { 'line-color': '#4c90f0', 'line-width': 3 } });
+  map.addLayer({ id: 'flight-ahead', type: 'line', source: 'flight-ahead', paint: { 'line-color': '#4c90f0', 'line-width': 2, 'line-opacity': 0.85, 'line-dasharray': [1, 2] } });
   map.addLayer({ id: 'flight-estimate', type: 'line', source: 'flight-estimate', paint: { 'line-color': '#4c90f0', 'line-width': 2, 'line-dasharray': [1, 2] } });
   map.addLayer({ id: 'route-airports', type: 'circle', source: 'route-airports', paint: { 'circle-color': '#ffffff', 'circle-radius': 4, 'circle-stroke-color': '#000000', 'circle-stroke-width': 2 } });
   map.addLayer({ id: 'selected-halo', type: 'circle', source: 'aircraft', filter: ['==', ['get', 'selected'], true], paint: { 'circle-radius': 17, 'circle-color': '#4c90f0', 'circle-opacity': 0.18, 'circle-stroke-color': '#4c90f0', 'circle-stroke-width': 1 } });
@@ -48,4 +49,11 @@ export function updateFlightPath(map: Map, points: TrackPoint[], airports: Route
   (map.getSource('flight-trail') as GeoJSONSource).setData(lineFeatures(trackLines(points)));
   (map.getSource('flight-route') as GeoJSONSource).setData(lineFeatures(routeLines(airports)));
   (map.getSource('route-airports') as GeoJSONSource).setData({ type: 'FeatureCollection', features: airports.map(airport => ({ type: 'Feature', properties: { code: airport.code }, geometry: { type: 'Point', coordinates: [airport.lon, airport.lat] } })) });
+}
+
+export function updateAheadPath(map: Map, selected: Entity | null, airports: RouteAirport[]) {
+  const source = map.getSource('flight-ahead') as GeoJSONSource | undefined;
+  if (!source) return;
+  const lines = selected ? aheadLines({ lon: selected.lon, lat: selected.lat, heading: selected.heading, speed: selected.speed, onGround: Boolean(selected.meta.onGround) }, airports) : [];
+  source.setData(lineFeatures(lines));
 }

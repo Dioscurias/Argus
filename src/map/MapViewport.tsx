@@ -8,7 +8,7 @@ import { makeNightMask } from './geography';
 import { isLayerVisible } from '../layers/state';
 import type { LayerStack } from '../layers/types';
 import type { Entity } from '../../shared/schema';
-import { addAircraftLayers, updateAircraft, updateAircraftMotion, updateEstimatedPath, updateFlightPath } from './aircraft-renderer';
+import { addAircraftLayers, updateAircraft, updateAircraftMotion, updateEstimatedPath, updateFlightPath, updateAheadPath } from './aircraft-renderer';
 import { AircraftMotion, type AircraftPosition } from './aircraft-motion';
 import type { TrackPoint } from './flight-path';
 import type { RouteAirport } from '../../shared/aircraft-details';
@@ -73,6 +73,7 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
   projectionRef.current = projection;
   callbacks.current = { onCursor, onFps, onRegion, onSelect };
   const [loaded, setLoaded] = useState(false);
+  const [spinning, setSpinning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [zoom, setZoom] = useState(1.05);
@@ -201,6 +202,9 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
     if (loaded && mapRef.current) updateFlightPath(mapRef.current, track, route);
   }, [loaded, track, route]);
   useEffect(() => {
+    if (loaded && mapRef.current) updateAheadPath(mapRef.current, selected, route);
+  }, [loaded, route, selected?.id, selected?.ts]);
+  useEffect(() => {
     if (loaded && selected && mapRef.current) mapRef.current.easeTo({ center: [selected.lon, selected.lat], zoom: projectionRef.current === 'globe' ? overviewZoom(mapRef.current, 'globe', selected.lat) : 3, duration: 0 });
   }, [loaded, selected?.id]);
   const fitFlight = () => {
@@ -230,6 +234,24 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
     if (loaded && globalCoverage && mapRef.current) mapRef.current.jumpTo({ center: [0, 22], zoom: overviewZoom(mapRef.current, projection, 22) });
   }, [globalCoverage, loaded]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!loaded || !map || !spinning) return;
+    let raf = 0;
+    let last = performance.now();
+    const step = (now: number) => {
+      const dt = Math.min(now - last, 100);
+      last = now;
+      const c = map.getCenter();
+      map.jumpTo({ center: [c.lng + dt * 0.006, c.lat] });
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    const stop = () => setSpinning(false);
+    map.on('mousedown', stop); map.on('touchstart', stop); map.on('wheel', stop);
+    return () => { cancelAnimationFrame(raf); map.off('mousedown', stop); map.off('touchstart', stop); map.off('wheel', stop); };
+  }, [spinning, loaded]);
+
   const reset = () => {
     const map = mapRef.current;
     map?.flyTo({ center: globalCoverage ? [0, 22] : [-98, 39], zoom: globalCoverage || projection === 'globe' ? overviewZoom(map, projection, globalCoverage ? 22 : 39) : 3, bearing: 0, pitch: 0, duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600 });
@@ -240,7 +262,7 @@ export function MapViewport({ projection, stack, aircraft, onCursor, onFps, onRe
     <div className="map-top-right"><span className="map-reference-tag"><span className="health-dot healthy"/> LOCAL BASEMAP</span></div>
     {selected && <div className="selection-controls"><span className="mono">{selected.label} · ISOLATED</span><Button small onClick={() => onSelect(null)}>Show all aircraft</Button><Button small minimal onClick={fitFlight}>Fit flight path</Button><div><span className="trail-key"/> Observed <span className="estimate-key"/> Estimated <span className="route-key"/> Route</div></div>}
     <div className="map-toolrail" aria-label="Map tools"><Button minimal title="Pan map" aria-label="Pan map" active><Icon name="cursor"/></Button></div>
-    <div className="map-navigation"><Button minimal aria-label="Reset north" title="Reset north" className="north-button" onClick={() => mapRef.current?.resetNorth()}><span>N</span><svg width="16" height="18" viewBox="0 0 16 18" style={{ transform: `rotate(${-bearing}deg)` }} aria-hidden="true"><path d="m8 1 6 15-6-4-6 4Z" fill="none" stroke="currentColor"/></svg></Button><div className="zoom-buttons"><Button minimal aria-label="Zoom in" title="Zoom in" onClick={() => mapRef.current?.zoomIn()}><Icon name="plus"/></Button><Button minimal aria-label="Zoom out" title="Zoom out" onClick={() => mapRef.current?.zoomOut()}><Icon name="minus"/></Button></div><Button minimal aria-label="Reset map view" title="Reset world overview" onClick={reset}><Icon name="globe"/></Button></div>
+    <div className="map-navigation"><Button minimal aria-label="Reset north" title="Reset north" className="north-button" onClick={() => mapRef.current?.resetNorth()}><span>N</span><svg width="16" height="18" viewBox="0 0 16 18" style={{ transform: `rotate(${-bearing}deg)` }} aria-hidden="true"><path d="m8 1 6 15-6-4-6 4Z" fill="none" stroke="currentColor"/></svg></Button><div className="zoom-buttons"><Button minimal aria-label="Zoom in" title="Zoom in" onClick={() => mapRef.current?.zoomIn()}><Icon name="plus"/></Button><Button minimal aria-label="Zoom out" title="Zoom out" onClick={() => mapRef.current?.zoomOut()}><Icon name="minus"/></Button></div><Button minimal aria-label="Reset map view" title="Reset world overview" onClick={reset}><Icon name="globe"/></Button><Button minimal aria-label={spinning ? 'Stop spinning' : 'Spin globe'} aria-pressed={spinning} active={spinning} title={spinning ? 'Stop spinning' : 'Spin globe'} className={`spin-button${spinning ? ' is-spinning' : ''}`} onClick={() => setSpinning((value) => !value)}><Icon name="spin"/></Button></div>
     <div className="map-bottom-left"><span className="coordinate-tick"/><span className="mono">WGS84</span><span className="map-coordinate-divider">/</span><span className="mono">ZOOM {zoom.toFixed(2)}</span></div>
     <div className="map-phase-note"><span className="phase-index"><Icon name="air" size={20}/></span><div><strong>{isLayerVisible(stack, 'air') ? `${formatCount(aircraft.length)} observed aircraft` : 'Air layer hidden'}</strong><span>{globalCoverage ? 'Worldwide ADS-B observations.' : 'Pan the map to load a new 250-NM live region.'}</span></div></div>
     {hover && isLayerVisible(stack, 'air') && <div className="map-tooltip" style={{ left: Math.max(8, Math.min(hover.x + 15, (container.current?.clientWidth ?? 300) - 260)), top: Math.max(8, Math.min(hover.y + 15, (container.current?.clientHeight ?? 300) - 145)) }}>
